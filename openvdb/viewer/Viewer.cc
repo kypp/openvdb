@@ -226,6 +226,7 @@ ViewerImpl::ViewerImpl()
 void
 ViewerImpl::init(const std::string& progName, bool verbose)
 {
+	glewInit();
     mProgName = progName;
 
     if (glfwInit() != GL_TRUE) {
@@ -560,9 +561,9 @@ ViewerImpl::showNthGrid(size_t n)
 
     mRenderModules.clear();
     mRenderModules.push_back(RenderModulePtr(new ViewportModule));
-    mRenderModules.push_back(RenderModulePtr(new TreeTopologyModule(mGrids[n])));
+    //mRenderModules.push_back(RenderModulePtr(new TreeTopologyModule(mGrids[n])));
     mRenderModules.push_back(RenderModulePtr(new MeshModule(mGrids[n])));
-    mRenderModules.push_back(RenderModulePtr(new ActiveValueModule(mGrids[n])));
+    //mRenderModules.push_back(RenderModulePtr(new ActiveValueModule(mGrids[n])));
 
     if (active.empty()) {
         for (size_t i = 2, I = mRenderModules.size(); i < I; ++i) {

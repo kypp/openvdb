@@ -70,13 +70,14 @@ public:
     typedef boost::shared_ptr<LeafNode>  Ptr;
     typedef util::NodeMask<Log2Dim>      NodeMaskType;
 
-    static const Index
-        LOG2DIM     = Log2Dim,      // needed by parent nodes
-        TOTAL       = Log2Dim,      // needed by parent nodes
-        DIM         = 1 << TOTAL,   // dimension along one coordinate direction
-        NUM_VALUES  = 1 << 3 * Log2Dim,
-        NUM_VOXELS  = NUM_VALUES,   // total number of voxels represented by this node
-        SIZE        = NUM_VALUES,
+	static const Index
+		LOG2DIM = Log2Dim,      // needed by parent nodes
+		TOTAL = Log2Dim,      // needed by parent nodes
+		DIM = 1 << TOTAL,   // dimension along one coordinate direction
+		NUM_VALUES = 1 << 3 * Log2Dim,
+		NUM_VOXELS = NUM_VALUES;   // total number of voxels represented by this node
+	static const Index
+		SIZE = NUM_VALUES,
         LEVEL       = 0;            // level 0 = leaf
 
     /// @brief ValueConverter<T>::Type is the type of a LeafNode having the same

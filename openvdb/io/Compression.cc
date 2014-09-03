@@ -30,6 +30,10 @@
 
 #include "Compression.h"
 
+#ifdef _WIN32
+#define ZLIB_WINAPI 
+#endif
+
 #include <boost/algorithm/string/join.hpp>
 #include <boost/shared_array.hpp>
 #include <zlib.h>

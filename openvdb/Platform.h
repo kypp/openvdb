@@ -131,9 +131,9 @@
 #endif
 
 /// Visual C++ does not have round
-#ifdef _MSC_VER
-    #include <boost/math/special_functions/round.hpp>
-    using boost::math::round;
+#ifdef _MSC_VER	
+    #include <cmath>
+    using std::round;
 #endif
 
 /// Visual C++ uses _copysign() instead of copysign()
@@ -144,15 +144,16 @@
 
 /// Visual C++ does not have stdint.h which defines types like uint64_t.
 /// So for portability we instead include boost/cstdint.hpp.
-#include <boost/cstdint.hpp>
-using boost::int8_t;
-using boost::int16_t;
-using boost::int32_t;
-using boost::int64_t;
-using boost::uint8_t;
-using boost::uint16_t;
-using boost::uint32_t;
-using boost::uint64_t;
+/// No longer valid as of VS2013
+#include <cstdint>
+using std::int8_t;
+using std::int16_t;
+using std::int32_t;
+using std::int64_t;
+using std::uint8_t;
+using std::uint16_t;
+using std::uint32_t;
+using std::uint64_t;
 
 /// Helper macros for defining library symbol visibility
 #ifdef OPENVDB_EXPORT

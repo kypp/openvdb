@@ -35,6 +35,8 @@
 
 // Windows specific configuration
 #ifdef _WIN32
+    #define OPENVDB_STATICLIB
+   // #define OPENVDB_OPENEXR_STATICLIB
 
     // By default, assume we're building OpenVDB as a DLL if we're dynamically
     // linking in the CRT, unless OPENVDB_STATICLIB is defined.
