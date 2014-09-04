@@ -1,0 +1,202 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{07116060-021C-47F0-A5C6-0E686CC67B91}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>openvdb_vs</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <TargetName>openvdb</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../../;../../../boost;../../../openexr/IlmBase/Half;../../../intel_tbb/include;../../../zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>..\..\..\intel_tbb\lib\ia32\vc12\tbb.lib;..\..\..\StatRelease\zlibstat.lib;..\..\..\openexr\lib\Debug\Half.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>false</SDLCheck>
+      <AdditionalIncludeDirectories>../../;../../../boost;../../../openexr/IlmBase/Half;../../../intel_tbb/include;../../../zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <DisableSpecificWarnings>4244;4800;4146</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories></AdditionalLibraryDirectories>
+      <AdditionalDependencies>..\..\..\intel_tbb\lib\ia32\vc12\tbb.lib;..\..\..\StatRelease\zlibstat.lib;..\..\..\openexr\lib\Release\Half.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\openvdb\Grid.cc" />
+    <ClCompile Include="..\..\openvdb\io\Archive.cc" />
+    <ClCompile Include="..\..\openvdb\io\Compression.cc" />
+    <ClCompile Include="..\..\openvdb\io\File.cc" />
+    <ClCompile Include="..\..\openvdb\io\GridDescriptor.cc" />
+    <ClCompile Include="..\..\openvdb\io\Queue.cc" />
+    <ClCompile Include="..\..\openvdb\io\Stream.cc" />
+    <ClCompile Include="..\..\openvdb\math\Hermite.cc" />
+    <ClCompile Include="..\..\openvdb\math\Maps.cc" />
+    <ClCompile Include="..\..\openvdb\math\Proximity.cc" />
+    <ClCompile Include="..\..\openvdb\math\QuantizedUnitVec.cc" />
+    <ClCompile Include="..\..\openvdb\math\Transform.cc" />
+    <ClCompile Include="..\..\openvdb\metadata\Metadata.cc" />
+    <ClCompile Include="..\..\openvdb\metadata\MetaMap.cc" />
+    <ClCompile Include="..\..\openvdb\openvdb.cc" />
+    <ClCompile Include="..\..\openvdb\Platform.cc" />
+    <ClCompile Include="..\..\openvdb\util\Formats.cc" />
+    <ClCompile Include="..\..\openvdb\util\Util.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\openvdb\Exceptions.h" />
+    <ClInclude Include="..\..\openvdb\Grid.h" />
+    <ClInclude Include="..\..\openvdb\io\Archive.h" />
+    <ClInclude Include="..\..\openvdb\io\Compression.h" />
+    <ClInclude Include="..\..\openvdb\io\File.h" />
+    <ClInclude Include="..\..\openvdb\io\GridDescriptor.h" />
+    <ClInclude Include="..\..\openvdb\io\Queue.h" />
+    <ClInclude Include="..\..\openvdb\io\Stream.h" />
+    <ClInclude Include="..\..\openvdb\math\BBox.h" />
+    <ClInclude Include="..\..\openvdb\math\Coord.h" />
+    <ClInclude Include="..\..\openvdb\math\DDA.h" />
+    <ClInclude Include="..\..\openvdb\math\FiniteDifference.h" />
+    <ClInclude Include="..\..\openvdb\math\Hermite.h" />
+    <ClInclude Include="..\..\openvdb\math\LegacyFrustum.h" />
+    <ClInclude Include="..\..\openvdb\math\Maps.h" />
+    <ClInclude Include="..\..\openvdb\math\Mat.h" />
+    <ClInclude Include="..\..\openvdb\math\Mat3.h" />
+    <ClInclude Include="..\..\openvdb\math\Mat4.h" />
+    <ClInclude Include="..\..\openvdb\math\Math.h" />
+    <ClInclude Include="..\..\openvdb\math\Operators.h" />
+    <ClInclude Include="..\..\openvdb\math\Proximity.h" />
+    <ClInclude Include="..\..\openvdb\math\QuantizedUnitVec.h" />
+    <ClInclude Include="..\..\openvdb\math\Quat.h" />
+    <ClInclude Include="..\..\openvdb\math\Ray.h" />
+    <ClInclude Include="..\..\openvdb\math\Stats.h" />
+    <ClInclude Include="..\..\openvdb\math\Stencils.h" />
+    <ClInclude Include="..\..\openvdb\math\Transform.h" />
+    <ClInclude Include="..\..\openvdb\math\Tuple.h" />
+    <ClInclude Include="..\..\openvdb\math\Vec2.h" />
+    <ClInclude Include="..\..\openvdb\math\Vec3.h" />
+    <ClInclude Include="..\..\openvdb\math\Vec4.h" />
+    <ClInclude Include="..\..\openvdb\Metadata.h" />
+    <ClInclude Include="..\..\openvdb\metadata\Metadata.h" />
+    <ClInclude Include="..\..\openvdb\metadata\MetaMap.h" />
+    <ClInclude Include="..\..\openvdb\metadata\StringMetadata.h" />
+    <ClInclude Include="..\..\openvdb\openvdb.h" />
+    <ClInclude Include="..\..\openvdb\Platform.h" />
+    <ClInclude Include="..\..\openvdb\PlatformConfig.h" />
+    <ClInclude Include="..\..\openvdb\tools\Composite.h" />
+    <ClInclude Include="..\..\openvdb\tools\Dense.h" />
+    <ClInclude Include="..\..\openvdb\tools\DenseSparseTools.h" />
+    <ClInclude Include="..\..\openvdb\tools\Filter.h" />
+    <ClInclude Include="..\..\openvdb\tools\GridOperators.h" />
+    <ClInclude Include="..\..\openvdb\tools\GridTransformer.h" />
+    <ClInclude Include="..\..\openvdb\tools\Interpolation.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetAdvect.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetFilter.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetFracture.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetMeasure.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetMorph.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetRebuild.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetSphere.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetTracker.h" />
+    <ClInclude Include="..\..\openvdb\tools\LevelSetUtil.h" />
+    <ClInclude Include="..\..\openvdb\tools\MeshToVolume.h" />
+    <ClInclude Include="..\..\openvdb\tools\Morphology.h" />
+    <ClInclude Include="..\..\openvdb\tools\ParticlesToLevelSet.h" />
+    <ClInclude Include="..\..\openvdb\tools\PointAdvect.h" />
+    <ClInclude Include="..\..\openvdb\tools\PointScatter.h" />
+    <ClInclude Include="..\..\openvdb\tools\RayIntersector.h" />
+    <ClInclude Include="..\..\openvdb\tools\RayTracer.h" />
+    <ClInclude Include="..\..\openvdb\tools\Statistics.h" />
+    <ClInclude Include="..\..\openvdb\tools\ValueTransformer.h" />
+    <ClInclude Include="..\..\openvdb\tools\VectorTransformer.h" />
+    <ClInclude Include="..\..\openvdb\tools\VolumeToMesh.h" />
+    <ClInclude Include="..\..\openvdb\tools\VolumeToSpheres.h" />
+    <ClInclude Include="..\..\openvdb\tree\InternalNode.h" />
+    <ClInclude Include="..\..\openvdb\tree\Iterator.h" />
+    <ClInclude Include="..\..\openvdb\tree\LeafManager.h" />
+    <ClInclude Include="..\..\openvdb\tree\LeafNode.h" />
+    <ClInclude Include="..\..\openvdb\tree\LeafNodeBool.h" />
+    <ClInclude Include="..\..\openvdb\tree\NodeUnion.h" />
+    <ClInclude Include="..\..\openvdb\tree\RootNode.h" />
+    <ClInclude Include="..\..\openvdb\tree\Tree.h" />
+    <ClInclude Include="..\..\openvdb\tree\TreeIterator.h" />
+    <ClInclude Include="..\..\openvdb\tree\Util.h" />
+    <ClInclude Include="..\..\openvdb\tree\ValueAccessor.h" />
+    <ClInclude Include="..\..\openvdb\Types.h" />
+    <ClInclude Include="..\..\openvdb\util\CpuTimer.h" />
+    <ClInclude Include="..\..\openvdb\util\Formats.h" />
+    <ClInclude Include="..\..\openvdb\util\logging.h" />
+    <ClInclude Include="..\..\openvdb\util\MapsUtil.h" />
+    <ClInclude Include="..\..\openvdb\util\Name.h" />
+    <ClInclude Include="..\..\openvdb\util\NodeMasks.h" />
+    <ClInclude Include="..\..\openvdb\util\NullInterrupter.h" />
+    <ClInclude Include="..\..\openvdb\util\Util.h" />
+    <ClInclude Include="..\..\openvdb\version.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
