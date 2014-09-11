@@ -200,7 +200,8 @@ private:
     // number generation.
     struct BuildList
     {
-        static const size_t LOG2SIZE = 13, SIZE = 1 << LOG2SIZE;
+		static const size_t LOG2SIZE = 13;
+		static const size_t SIZE = 1 << LOG2SIZE;
         BuildList(Index64 voxelCount, Index64 pointCount, size_t seed = 0)
             : mOwnsList(true)
             , mList(new Index64[pointCount])
