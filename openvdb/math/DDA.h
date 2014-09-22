@@ -42,6 +42,8 @@
 #include "Vec3.h"
 #include <iostream>// for std::ostream
 #include <limits>// for std::numeric_limits<Type>::max()
+#include "..\Types.h"
+#include "..\tree\ValueAccessor.h"
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
