@@ -180,6 +180,44 @@ private:
     ValueType mWeight;
 }; // class FogVolumeOp
 
+template<typename ValueType, typename GradientAccessor>
+class SlicableVolumeOp
+{
+public:
+	SlicableVolumeOp(ValueType cutoffDistance, GradientAccessor & accessor)
+		: mWeight(ValueType(1.0) / cutoffDistance),
+		mGradAccessor(accessor)
+	{
+	}
+
+	// cutoff has to be < 0.0
+	template <typename LeafNodeType>
+	void operator()(LeafNodeType &leaf, size_t/*leafIndex*/) const
+	{
+		const ValueType zero = zeroVal<ValueType>();
+		auto acc = mGradAccessor;
+
+		for (typename LeafNodeType::ValueAllIter iter = leaf.beginValueAll(); iter; ++iter) {
+			ValueType& value = const_cast<ValueType&>(iter.getValue());
+			if (value > zero) {
+				value = zero;
+				iter.setValueOff();
+			}
+			else {
+				math::Coord coord = iter.getCoord();
+				float multiplier = math::D1<math::CD_2ND>::inZ(acc, coord);
+				multiplier = 1.0f - abs(multiplier) / 2.0f;
+
+				value = std::min(ValueType(1.0), value * mWeight / multiplier);
+				iter.setValueOn(value > zero);
+			}
+		}
+	}
+
+private:
+	GradientAccessor & mGradAccessor;
+	ValueType mWeight;
+}; // class SlicableVolumeOp
 
 template<typename TreeType>
 class InteriorMaskOp
@@ -348,6 +386,69 @@ sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
     grid.setGridClass(GRID_FOG_VOLUME);
 }
 
+////////////////////////////////////////
+
+
+template <class GridType, class GradientAccessor>
+inline void
+sdfToSlicableVolume(GridType& grid, GradientAccessor & accessor, typename GridType::ValueType cutoffDistance)
+{
+	typedef typename GridType::TreeType TreeType;
+	typedef typename GridType::ValueType ValueType;
+
+	cutoffDistance = -std::abs(cutoffDistance);
+
+	TreeType& tree = const_cast<TreeType&>(grid.tree());
+
+	{ // Transform all voxels (parallel, over leaf nodes)
+		tree::LeafManager<TreeType> leafs(tree);
+
+		MinMaxVoxel<TreeType> minmax(leafs);
+		minmax.runParallel();
+
+		// Clamp to the interior band width.
+		if (minmax.minVoxel() > cutoffDistance) {
+			cutoffDistance = minmax.minVoxel();
+		}
+
+		leafs.foreach(internal::SlicableVolumeOp<ValueType, GradientAccessor>(cutoffDistance, accessor));
+	}
+
+	// Transform all tile values (serial, but the iteration
+	// is constrained from descending into leaf nodes)
+	const ValueType zero = zeroVal<ValueType>();
+	typename TreeType::ValueAllIter iter(tree);
+	iter.setMaxDepth(TreeType::ValueAllIter::LEAF_DEPTH - 1);
+
+	for (; iter; ++iter) {
+		ValueType& value = const_cast<ValueType&>(iter.getValue());
+
+		if (value > zero) {
+			value = zero;
+			iter.setValueOff();
+		}
+		else {
+			value = ValueType(1.0);
+			iter.setActiveState(true);
+		}
+	}
+
+	// Update the tree background value.
+
+	typename TreeType::Ptr newTree(new TreeType(/*background=*/zero));
+	newTree->merge(tree);
+	// This is faster than calling Tree::setBackground, since we only need
+	// to update the value that is returned for coordinates that don't fall
+	// inside an allocated node. All inactive tiles and voxels have already
+	// been updated in the previous step so the Tree::setBackground method
+	// will in this case do a redundant traversal of the tree to update the
+	// inactive values once more.
+
+	//newTree->pruneInactive();
+	grid.setTree(newTree);
+
+	grid.setGridClass(GRID_FOG_VOLUME);
+}
 
 ////////////////////////////////////////
 

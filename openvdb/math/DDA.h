@@ -42,8 +42,8 @@
 #include "Vec3.h"
 #include <iostream>// for std::ostream
 #include <limits>// for std::numeric_limits<Type>::max()
-#include "..\Types.h"
-#include "..\tree\ValueAccessor.h"
+#include <openvdb/Types.h>
+#include <openvdb/tree/ValueAccessor.h>
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
@@ -53,7 +53,7 @@ namespace math {
 /// @brief A Digital Differential Analyzer specialized for OpenVDB grids
 /// @note Conceptually similar to Bresenham's line algorithm applied
 /// to a 3D Ray intersecting OpenVDB nodes or voxels. Log2Dim = 0
-/// corresponds to a voxel and Log2Dim a tree node of size 2^Log2Dim.     
+/// corresponds to a voxel and Log2Dim a tree node of size 2^Log2Dim.
 ///
 /// @note The Ray template class is expected to have the following
 /// methods: test(time), t0(), t1(), invDir(), and  operator()(time).
@@ -75,10 +75,12 @@ public:
     DDA(const RayT& ray, RealT startTime) { this->init(ray, startTime); }
 
     DDA(const RayT& ray, RealT startTime, RealT maxTime) { this->init(ray, startTime, maxTime); }
-    
+
     inline void init(const RayT& ray, RealT startTime, RealT maxTime)
     {
-        assert(startTime <= maxTime);
+        // if (startTime > maxTime)
+        //     fprintf(stderr, "%f>%f\n", startTime, maxTime);
+        // assert(startTime <= maxTime);
         static const int DIM = 1 << Log2Dim;
         mT0 = startTime;
         mT1 = maxTime;
@@ -211,7 +213,7 @@ template <typename TreeT, typename RayT, int ChildNodeLevel>
 class VolumeHDDA
 {
 public:
-    
+
     typedef typename TreeT::RootNodeType::NodeChainType ChainT;
     typedef typename boost::mpl::at<ChainT, boost::mpl::int_<ChildNodeLevel> >::type NodeT;
     typedef typename tree::ValueAccessor<const TreeT> AccessorT;
@@ -225,7 +227,7 @@ public:
         if (ray.valid()) this->march(ray, acc, t);
         return t;
     }
-    
+
     void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times)
     {
         TimeSpanT t(-1,-1);
@@ -233,9 +235,9 @@ public:
         this->hits(ray, acc, times, t);
         if (t.valid()) times.push_back(t);
     }
-    
+
 private:
-    
+
     friend class VolumeHDDA<TreeT, RayT, ChildNodeLevel+1>;
 
     bool march(RayT& ray, AccessorT &acc, TimeSpanT& t)
@@ -256,7 +258,7 @@ private:
         if (t.t0>=0) t.t1 = mDDA.maxTime();
         return false;
     }
-    
+
     void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times, TimeSpanT& t)
     {
         mDDA.init(ray);
@@ -274,7 +276,7 @@ private:
         } while (mDDA.step());
         if (t.t0>=0) t.t1 = mDDA.maxTime();
     }
-    
+
     math::DDA<RayT, NodeT::TOTAL> mDDA;
     VolumeHDDA<TreeT, RayT, ChildNodeLevel-1> mHDDA;
 };
@@ -285,7 +287,7 @@ template <typename TreeT, typename RayT>
 class VolumeHDDA<TreeT, RayT, 0>
 {
 public:
-    
+
     typedef typename TreeT::LeafNodeType LeafT;
     typedef typename tree::ValueAccessor<const TreeT> AccessorT;
     typedef typename RayT::TimeSpan TimeSpanT;
@@ -298,7 +300,7 @@ public:
         if (ray.valid()) this->march(ray, acc, t);
         return t;
     }
-    
+
     void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times)
     {
         TimeSpanT t(-1,-1);
@@ -306,9 +308,9 @@ public:
         this->hits(ray, acc, times, t);
         if (t.valid()) times.push_back(t);
     }
-    
+
 private:
-    
+
     friend class VolumeHDDA<TreeT, RayT, 1>;
 
     bool march(RayT& ray, AccessorT &acc, TimeSpanT& t)
@@ -327,7 +329,7 @@ private:
         if (t.t0>=0) t.t1 = mDDA.maxTime();
         return false;
     }
-    
+
     void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times, TimeSpanT& t)
     {
         mDDA.init(ray);
@@ -344,7 +346,7 @@ private:
         if (t.t0>=0) t.t1 = mDDA.maxTime();
     }
     math::DDA<RayT, LeafT::TOTAL> mDDA;
-};    
+};
 
 } // namespace math
 } // namespace OPENVDB_VERSION_NAME
