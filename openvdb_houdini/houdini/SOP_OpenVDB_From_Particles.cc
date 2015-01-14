@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -62,6 +62,9 @@ namespace {
 class ParticleList
 {
 public:
+    // required typedef for bucketing
+    typedef openvdb::Vec3R    value_type;
+
     ParticleList(const GU_Detail* gdp,
                  openvdb::Real radiusMult = 1,
                  openvdb::Real velocityMult = 1) :
@@ -120,7 +123,7 @@ public:
         vel[0] = mVelocityMult*v[0], vel[1] = mVelocityMult*v[1], vel[2] = mVelocityMult*v[2];
     }
     // Required for attribute transfer
-    void getAtt(int n, openvdb::Int32& att) const { att = n; }
+    void getAtt(size_t n, openvdb::Int32& att) const { att = openvdb::Int32(n); }
 
 protected:
 
@@ -238,6 +241,7 @@ protected:
     virtual bool updateParmsFlags();
 
 private:
+
     void convert(openvdb::FloatGrid::Ptr, ParticleList&, const Settings&);
     void convertWithAttributes(openvdb::FloatGrid::Ptr, ParticleList&,
         const Settings&, const GU_Detail&);
@@ -330,14 +334,14 @@ newSopOperator(OP_OperatorTable* table)
 
     parms.add(hutil::ParmFactory(PRM_STRING, "maskVolumeGridName", "Mask VDB")
         .setDefault("mask")
-              .setHelpText("Output the mask volume grid.\nGenerate an alpha mask "
-               "that is very useful for subsequent constrained level set smoothing "
-               "of the level set surface from the particles. This alpha mask is defined "
-               "as the fog volume derived from the CSG difference between a level set "
-               "surface with a maximum radius of the particles and a level set surface "
-               "with a minimum radius of the particles. This mask will guarentee that "
-               "subsequent level set smoothing is constrained between the min/max surfaces, "
-               " thus avoiding that surface details are completely smoothed away!"));
+        .setHelpText("Output the mask volume grid.\nGenerate an alpha mask "
+              "that is very useful for subsequent constrained level set smoothing "
+              "of the level set surface from the particles. This alpha mask is defined "
+              "as the fog volume derived from the CSG difference between a level set "
+              "surface with a maximum radius of the particles and a level set surface "
+              "with a minimum radius of the particles. This mask will guarentee that "
+              "subsequent level set smoothing is constrained between the min/max surfaces, "
+              " thus avoiding that surface details are completely smoothed away!"));
 
     //////////
     // Conversion settings
@@ -346,8 +350,7 @@ newSopOperator(OP_OperatorTable* table)
 
     // Group name (Transform reference)
     parms.add(hutil::ParmFactory(PRM_STRING, "group", "Reference VDB")
-        .setChoiceList(&hutil::PrimGroupMenu)
-        .setSpareData(&SOP_Node::theSecondInput)
+        .setChoiceList(&hutil::PrimGroupMenuInput2)
         .setHelpText("References the first/selected grid's transform."));
 
     parms.add(hutil::ParmFactory(PRM_TOGGLE, "writeintoref", "Merge With Reference VDB"));
@@ -360,14 +363,16 @@ newSopOperator(OP_OperatorTable* table)
 
     // Narrow-band {
     parms.add(hutil::ParmFactory(PRM_TOGGLE, "worldSpaceUnits", "Use World Space for Band")
-        .setCallbackFunc(&convertUnitsCB));
+              .setCallbackFunc(&convertUnitsCB));
 
     // Voxel-space width
     parms.add(hutil::ParmFactory(PRM_FLT_J, "bandWidth", "Half-Band Voxels")
         .setDefault(PRMthreeDefaults)
         .setRange(PRM_RANGE_RESTRICTED, 1, PRM_RANGE_UI, 10)
         .setHelpText("Half the width of the narrow band in voxel units. "
-            "(3 is optimal for level set operations.)"));
+                     "For level set operations use a value of 3, or for better "
+                     "performance a value of 1 followed by the application "
+                     "of the \"Trim Narrow Band\" SOP."));
 
     // World-space width
     parms.add(hutil::ParmFactory(PRM_FLT_J, "bandWidthWS", "Half-Band")
@@ -376,7 +381,7 @@ newSopOperator(OP_OperatorTable* table)
     // }
 
     // dR (radius scale)
-    parms.add(hutil::ParmFactory(PRM_FLT_J, "dR", "Point Radius Scale")
+    parms.add(hutil::ParmFactory(PRM_FLT_J, "dR", "Particle Radius Scale")
         .setDefault(PRMoneDefaults)
         .setRange(PRM_RANGE_RESTRICTED, 0.0, PRM_RANGE_UI, 2.0)
         .setHelpText("Scaling multiplier for the radius. Use this parameter "
@@ -393,6 +398,14 @@ newSopOperator(OP_OperatorTable* table)
                      "voxels correspond to the Nyquist grid sampling frequency, "
                      "the smallest size the grid can safely represent. Thus, "
                      "values smaller than 1.5 will likely result in aliasing!"));
+
+     // Prune level set
+    parms.add(hutil::ParmFactory(PRM_TOGGLE, "prune", "Prune Level Set")
+        .setDefault(PRMzeroDefaults)
+        .setHelpText("Enable / disable the pruning of nodes, i.e. leafs filled with "
+                     "the inside values are compactly represented by a tile value. "
+                     "This option only has an effect if the particles are larger then "
+                     "the leaf nodes so it is normally recommended to leave it disabled."));
 
     // Width of the mask for constraining subsequent deformations
     parms.add(hutil::ParmFactory(PRM_FLT_J, "maskWidth", "Mask Width Scale")
@@ -430,8 +443,6 @@ newSopOperator(OP_OperatorTable* table)
         .setHelpText("Scale of distance between sphere instances. Use this parameter "
             "to control the aliasing and the number of instances."));
 
-
-
     //////////
     // Point attribute transfer
     parms.add(hutil::ParmFactory(PRM_HEADING, "transferHeading", "Attribute transfer"));
@@ -468,7 +479,6 @@ newSopOperator(OP_OperatorTable* table)
         .setHelpText("Transfer point attributes to each voxel in the level set's narrow band")
         .setMultiparms(attrParms)
         .setDefault(PRMzeroDefaults));
-
 
     //////////
     // Obsolete parameters
@@ -515,8 +525,8 @@ SOP_OpenVDB_From_Particles::factory(OP_Network* net,
 SOP_OpenVDB_From_Particles::SOP_OpenVDB_From_Particles(OP_Network* net,
     const char* name, OP_Operator* op)
     : hvdb::SOP_NodeVDB(net, name, op)
-    , mVoxelSize(0.1)
-    , mTime(0.0)
+    , mVoxelSize(0.1f)
+    , mTime(0.0f)
     , mBoss("Converting particles to level set")
 {
 }
@@ -576,7 +586,7 @@ SOP_OpenVDB_From_Particles::updateParmsFlags()
     changed |= enableParm("gridName", evalInt("levelSet", 0, 0));
     changed |= enableParm("fogVolumeGridName", evalInt("fogVolume", 0, 0));
 
-    bool build_mask = (evalInt("maskVolume", 0, 0) != 0);
+    bool build_mask = evalInt("maskVolume", 0, 0) != 0;
     changed |= enableParm("maskVolumeGridName", build_mask);
     changed |= enableParm("maskWidth", build_mask);
 
@@ -632,8 +642,8 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
         bool refexists = refGeo != NULL;
 
         // Set member data
-        mTime = context.getTime();
-        mVoxelSize = evalFloat("voxelSize", 0, mTime);
+        mTime = static_cast<float>(context.getTime());
+        mVoxelSize = static_cast<float>(evalFloat("voxelSize", 0, mTime));
 
         const bool outputLevelSetGrid   = bool(evalInt("levelSet",   0, mTime));
         const bool outputFogVolumeGrid  = bool(evalInt("fogVolume",  0, mTime));
@@ -650,7 +660,7 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
         // Get the conversion settings from the UI parameters.
         Settings settings;
         settings.mRasterizeTrails =  evalInt("footprint", 0, mTime) == 1;
-        settings.mDx = evalFloat("dX", 0,  mTime);
+        settings.mDx = static_cast<float>(evalFloat("dX", 0,  mTime));
 
         const bool wsUnits = bool(evalInt("worldSpaceUnits", 0, mTime));
         float background = 0.0;
@@ -674,22 +684,25 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
 
             if (refPrim) {
                 transform = refPrim->getGrid().transform().copy();
-                mVoxelSize = transform->voxelSize()[0];
+                mVoxelSize = static_cast<float>(transform->voxelSize()[0]);
 
                 if (bool(evalInt("writeintoref", 0, mTime))) {
                     if (refPrim->getGrid().getGridClass() == openvdb::GRID_LEVEL_SET) {
                         outputGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(
                             refPrim->getGrid().deepCopyGrid());
+
+                        if (!outputGrid) {
+                            addWarning(SOP_MESSAGE, "Cannot write into the selected"
+                                       " reference grid because it is not a float grid.");
+                        }
+
                         if (outputMaskVolumeGrid) {
                             minGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(
                                 refPrim->getGrid().deepCopyGrid());
                             maxGrid = openvdb::gridPtrCast<openvdb::FloatGrid>(
                                 refPrim->getGrid().deepCopyGrid());
                         }
-                        if (!outputGrid) {
-                            addWarning(SOP_MESSAGE, "Cannot write into the selected"
-                                " reference grid because it is not a float grid.");
-                        }
+
                     } else {
                         addWarning(SOP_MESSAGE, "Can only write directly into a level set grid.");
                     }
@@ -701,8 +714,8 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
         }
 
         // Set narrow band half-width
-        if (wsUnits) background = evalFloat("bandWidthWS", 0, mTime);
-        else background = mVoxelSize * evalFloat("bandWidth", 0, mTime);
+        if (wsUnits) background = static_cast<float>(evalFloat("bandWidthWS", 0, mTime));
+        else background = static_cast<float>(mVoxelSize * evalFloat("bandWidth", 0, mTime));
 
 
         // Perform the particle conversion.
@@ -718,20 +731,20 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
 
             if (outputAttributeGrid) {
                 // Converts and outputs point attribute grids
-                convertWithAttributes(outputGrid, paList, settings, *ptGeo);
+                this->convertWithAttributes(outputGrid, paList, settings, *ptGeo);
             } else {
-                convert(outputGrid, paList, settings);
+                this->convert(outputGrid, paList, settings);
             }
 
             if (outputMaskVolumeGrid) {
-                const float maskWidth = evalFloat("maskWidth", 0,  mTime);
+                const float maskWidth = static_cast<float>(evalFloat("maskWidth", 0,  mTime));
                 // Max grid
                 if (!maxGrid) maxGrid = openvdb::FloatGrid::create(background);
                 if (maskWidth > 0.0f) {
                     maxGrid->setGridClass(openvdb::GRID_LEVEL_SET);
                     maxGrid->setTransform(transform->copy());
                     paList.radiusMult() *= (1.0f + maskWidth);
-                    convert(maxGrid, paList, settings);
+                    this->convert(maxGrid, paList, settings);
 
                     // Min grid
                     if ( maskWidth < 1.0f) {
@@ -739,7 +752,7 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
                         minGrid->setGridClass(openvdb::GRID_LEVEL_SET);
                         minGrid->setTransform(transform->copy());
                         paList.radiusMult() *= (1.0f  - maskWidth)/(1.0f + maskWidth);
-                        convert(minGrid, paList, settings);
+                        this->convert(minGrid, paList, settings);
 
                         // CSG difference
                         openvdb::tools::csgDifference(*maxGrid, *minGrid);
@@ -754,7 +767,7 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
                 evalString(gridNameStr, "maskVolumeGridName", 0, mTime);
                 outputGrid->setName(gridNameStr.toStdString());
                 hvdb::createVdbPrimitive(*gdp, maxGrid, gridNameStr.toStdString().c_str());
-            }
+            }// masked volume grid
 
             // Output level set grid
             if ( outputLevelSetGrid) {
@@ -791,7 +804,6 @@ SOP_OpenVDB_From_Particles::cookMySop(OP_Context& context)
 
 ////////////////////////////////////////
 
-
 void
 SOP_OpenVDB_From_Particles::convert(openvdb::FloatGrid::Ptr outputGrid,
                                     ParticleList& paList,
@@ -811,7 +823,7 @@ SOP_OpenVDB_From_Particles::convert(openvdb::FloatGrid::Ptr outputGrid,
         raster.rasterizeSpheres(paList, paList.radiusMult());
     }
 
-    raster.finalize();
+    raster.finalize(evalInt("prune", 0, 0));
 
     if (raster.ignoredParticles()) {
         std::ostringstream ostr;
@@ -841,7 +853,8 @@ SOP_OpenVDB_From_Particles::convertWithAttributes(openvdb::FloatGrid::Ptr output
     } else {
         raster.rasterizeSpheres(paList, paList.radiusMult());
     }
-    raster.finalize();
+
+    raster.finalize(evalInt("prune", 0, 0));
 
     openvdb::Int32Grid::Ptr closestPtnIdxGrid = raster.attributeGrid();
 
@@ -1073,6 +1086,6 @@ SOP_OpenVDB_From_Particles::transferAttributes(
     }
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

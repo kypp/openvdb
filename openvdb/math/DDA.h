@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -86,7 +86,7 @@ public:
         mT1 = maxTime;
         const Vec3T &pos = ray(mT0), &dir = ray.dir(), &inv = ray.invDir();
         mVoxel = Coord::floor(pos) & (~(DIM-1));
-        for (size_t axis = 0; axis < 3; ++axis) {
+        for (int axis = 0; axis < 3; ++axis) {
             if (math::isZero(dir[axis])) {//handles dir = +/- 0
                 mStep[axis]  = 0;//dummy value
                 mNext[axis]  = std::numeric_limits<RealT>::max();//i.e. disabled!
@@ -111,7 +111,7 @@ public:
     /// and returns true if the step in time does not exceed maxTime.
     inline bool step()
     {
-        const size_t stepAxis = math::MinIndex(mNext);
+        const int stepAxis = static_cast<int>(math::MinIndex(mNext));
         mT0 = mNext[stepAxis];
         mNext[stepAxis]  += mDelta[stepAxis];
         mVoxel[stepAxis] += mStep[stepAxis];
@@ -209,6 +209,10 @@ struct LevelSetHDDA<TreeT, -1>
 
 /// @brief Helper class that implements Hierarchical Digital Differential Analyzers
 /// for ray intersections against a generic volume.
+///
+/// @details The template argument ChildNodeLevel specifies the entry
+/// upper node level used for the hierarchical ray-marching. The final
+/// lowest level is always the leaf node level, i.e. not the voxel level!
 template <typename TreeT, typename RayT, int ChildNodeLevel>
 class VolumeHDDA
 {
@@ -228,7 +232,12 @@ public:
         return t;
     }
 
-    void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times)
+    /// ListType is a list of RayType::TimeSpan and is required to
+    /// have the two methods: clear() and push_back(). Thus, it could
+    /// be std::vector<typename RayType::TimeSpan> or
+    /// std::deque<typename RayType::TimeSpan>.  
+    template <typename ListType>
+    void hits(RayT& ray, AccessorT &acc, ListType& times)
     {
         TimeSpanT t(-1,-1);
         times.clear();
@@ -259,7 +268,12 @@ private:
         return false;
     }
 
-    void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times, TimeSpanT& t)
+    /// ListType is a list of RayType::TimeSpan and is required to
+    /// have the two methods: clear() and push_back(). Thus, it could
+    /// be std::vector<typename RayType::TimeSpan> or
+    /// std::deque<typename RayType::TimeSpan>.
+    template <typename ListType>
+    void hits(RayT& ray, AccessorT &acc, ListType& times, TimeSpanT& t)
     {
         mDDA.init(ray);
         do {
@@ -301,7 +315,8 @@ public:
         return t;
     }
 
-    void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times)
+    template <typename ListType>
+    void hits(RayT& ray, AccessorT &acc, ListType& times)
     {
         TimeSpanT t(-1,-1);
         times.clear();
@@ -330,7 +345,8 @@ private:
         return false;
     }
 
-    void hits(RayT& ray, AccessorT &acc, std::vector<TimeSpanT>& times, TimeSpanT& t)
+    template <typename ListType>
+    void hits(RayT& ray, AccessorT &acc, ListType& times, TimeSpanT& t)
     {
         mDDA.init(ray);
         do {
@@ -353,3 +369,7 @@ private:
 } // namespace openvdb
 
 #endif // OPENVDB_MATH_DDA_HAS_BEEN_INCLUDED
+
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// All rights reserved. This software is distributed under the
+// Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

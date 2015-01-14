@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -44,12 +44,27 @@
 #include <openvdb/tools/VolumeToMesh.h>
 #include <openvdb/tools/MeshToVolume.h>
 #include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/Prune.h>
 #include <openvdb/math/Operators.h>
 #include <openvdb/math/Mat3.h>
 
+#include <CH/CH_Manager.h>
 #include <UT/UT_Interrupt.h>
 #include <UT/UT_Version.h>
 #include <GA/GA_PageIterator.h>
+
+#if (UT_VERSION_INT >= 0x0c0500F5) // 12.5.245 or later
+#include <GEO/GEO_PolyCounts.h>
+#endif
+
+#if (UT_VERSION_INT >= 0x0c050000) // 12.5.0 or later
+#define HAVE_POLYSOUP 1
+#include <GU/GU_PrimPolySoup.h>
+#else
+#define HAVE_POLYSOUP 0
+#endif
+
+
 #include <GU/GU_Detail.h>
 #include <GU/GU_Surfacer.h>
 #include <GU/GU_PolyReduce.h>
@@ -70,6 +85,12 @@
 #include <vector>
 
 
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+// GA_RWHandleV3 fails to initialize its member variables in some cases.
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+
+
 namespace hvdb = openvdb_houdini;
 namespace hutil = houdini_utils;
 
@@ -81,7 +102,7 @@ class SOP_OpenVDB_To_Polygons: public hvdb::SOP_NodeVDB
 {
 public:
     SOP_OpenVDB_To_Polygons(OP_Network*, const char* name, OP_Operator*);
-    virtual ~SOP_OpenVDB_To_Polygons() {};
+    virtual ~SOP_OpenVDB_To_Polygons() {}
 
     static OP_Node* factory(OP_Network*, const char* name, OP_Operator*);
 
@@ -91,7 +112,8 @@ public:
 
 protected:
     virtual OP_ERROR cookMySop(OP_Context&);
-    virtual unsigned disableParms();
+    virtual bool updateParmsFlags();
+    virtual void resolveObsoleteParms(PRM_ParmList*);
 
     template <class GridType>
     void referenceMeshing(
@@ -145,7 +167,22 @@ newSopOperator(OP_OperatorTable* table)
 
     parms.add(hutil::ParmFactory(PRM_STRING, "group", "Group")
         .setHelpText("Specify a subset of the input VDB grids to surface.")
-        .setChoiceList(&hutil::PrimGroupMenu));
+        .setChoiceList(&hutil::PrimGroupMenuInput1));
+
+    { // Geometry Type
+        const char* items[] = {
+            "polysoup", "Polygon Soup",
+            "poly",     "Polygons",
+            NULL
+        };
+
+        parms.add(hutil::ParmFactory(PRM_ORD, "geometrytype", "Geometry Type")
+            .setDefault(PRMzeroDefaults)
+            .setHelpText("Type of geometry to output. A polygon soup is a primitive "
+                "that stores polygons using a compact memory representation. Note "
+                "that not all geometry nodes can operate directly on this primitive.")
+            .setChoiceListItems(PRM_CHOICELIST_SINGLE, items));
+    }
 
     parms.add(hutil::ParmFactory(PRM_FLT_J, "isovalue", "Isovalue")
         .setDefault(PRMzeroDefaults)
@@ -240,15 +277,14 @@ newSopOperator(OP_OperatorTable* table)
 
     parms.add(hutil::ParmFactory(PRM_STRING, "surfacemaskname", "Surface Mask")
         .setHelpText("A single level-set or sdf grid whose interior defines the region to mesh.")
-        .setSpareData(&SOP_Node::theThirdInput)
-        .setChoiceList(&hutil::PrimGroupMenu));
+        .setChoiceList(&hutil::PrimGroupMenuInput3));
 
     parms.add(hutil::ParmFactory(PRM_FLT_J, "surfacemaskoffset", "Offset")
         .setDefault(PRMzeroDefaults)
         .setHelpText("Isovalue used to offset the interior region of the surface mask.")
         .setRange(PRM_RANGE_UI, -1.0, PRM_RANGE_UI, 1.0));
 
-    parms.add(hutil::ParmFactory(PRM_TOGGLE, "invertmask", "Invert Surface Mask")
+    parms.add(hutil::ParmFactory(PRM_TOGGLE, "invertsurfacemask", "Invert Surface Mask")
         .setHelpText("Used to mesh the complement of the mask."));
 
 
@@ -260,13 +296,13 @@ newSopOperator(OP_OperatorTable* table)
         .setHelpText(
             "A single scalar grid used as a spatial multiplier\n"
             "for the adaptivity threshold")
-        .setSpareData(&SOP_Node::theThirdInput)
-        .setChoiceList(&hutil::PrimGroupMenu));
+        .setChoiceList(&hutil::PrimGroupMenuInput3));
 
 
     //////////
     hutil::ParmList obsoleteParms;
     obsoleteParms.add(hutil::ParmFactory(PRM_TOGGLE, "smoothseams", "Smooth Seams"));
+    obsoleteParms.add(hutil::ParmFactory(PRM_TOGGLE, "invertmask", "").setDefault(PRMoneDefaults));
 
     hvdb::OpenVDBOpFactory("OpenVDB To Polygons", SOP_OpenVDB_To_Polygons::factory, parms, *table)
         .setObsoleteParms(obsoleteParms)
@@ -293,44 +329,66 @@ SOP_OpenVDB_To_Polygons::SOP_OpenVDB_To_Polygons(OP_Network* net,
 }
 
 
-unsigned
-SOP_OpenVDB_To_Polygons::disableParms()
+void
+SOP_OpenVDB_To_Polygons::resolveObsoleteParms(PRM_ParmList* obsoleteParms)
 {
-    unsigned changed = 0;
+    if (!obsoleteParms) return;
+
+    // using the invertmask attribute to detect old houdini files that
+    // had the regular polygon representation.
+    PRM_Parm* parm = obsoleteParms->getParmPtr("invertmask");
+    if (parm && !parm->isFactoryDefault()) {
+        setInt("geometrytype", 0, 0, 1);
+    }
+    hvdb::SOP_NodeVDB::resolveObsoleteParms(obsoleteParms);
+}
+
+
+bool
+SOP_OpenVDB_To_Polygons::updateParmsFlags()
+{
+    bool changed = false;
+    const fpreal time = CHgetEvalTime();
 
     const bool refexists = (nInputs() == 2);
+    bool usePolygonSoup = evalInt("geometrytype", 0, time) == 0;
 
-    changed += enableParm("internaladaptivity", refexists);
-    changed += enableParm("surfacegroup", refexists);
-    changed += enableParm("interiorgroup", refexists);
-    changed += enableParm("seamlinegroup", refexists);
-    changed += enableParm("seampoints", refexists);
-    changed += enableParm("transferattributes", refexists);
-    changed += enableParm("sharpenfeatures", refexists);
-    changed += enableParm("edgetolerance", refexists);
+#if !HAVE_POLYSOUP
+    changed |= setVisibleState("geometrytype", false);
+    usePolygonSoup = false;
+#endif
+
+    changed |= enableParm("computenormals", !usePolygonSoup);
+    changed |= enableParm("internaladaptivity", refexists);
+    changed |= enableParm("surfacegroup", refexists);
+    changed |= enableParm("interiorgroup", refexists);
+    changed |= enableParm("seamlinegroup", refexists);
+    changed |= enableParm("seampoints", refexists);
+    changed |= enableParm("transferattributes", refexists);
+    changed |= enableParm("sharpenfeatures", refexists);
+    changed |= enableParm("edgetolerance", refexists);
 
     const bool maskexists = (nInputs() == 3);
 
-    changed += enableParm("surfacemask", maskexists);
-    changed += enableParm("adaptivitymask", maskexists);
+    changed |= enableParm("surfacemask", maskexists);
+    changed |= enableParm("adaptivitymask", maskexists);
 
     const bool surfacemask = bool(evalInt("surfacemask", 0, 0));
-    changed += enableParm("surfacemaskname", maskexists && surfacemask);
-    changed += enableParm("surfacemaskoffset", maskexists && surfacemask);
-    changed += enableParm("invertmask", maskexists && surfacemask);
+    changed |= enableParm("surfacemaskname", maskexists && surfacemask);
+    changed |= enableParm("surfacemaskoffset", maskexists && surfacemask);
+    changed |= enableParm("invertsurfacemask", maskexists && surfacemask);
 
     const bool adaptivitymask = bool(evalInt("adaptivityfield", 0, 0));
-    changed += enableParm("adaptivityfieldname", maskexists && adaptivitymask);
+    changed |= enableParm("adaptivityfieldname", maskexists && adaptivitymask);
 
     const bool partition = evalInt("automaticpartitions", 0, 0) > 1;
-    changed += enableParm("activepart", partition);
+    changed |= enableParm("activepart", partition);
 
     return changed;
 }
 
 
 ////////////////////////////////////////
-
 
 void
 copyMesh(
@@ -341,6 +399,7 @@ copyMesh(
 #else
     hvdb::Interrupter&,
 #endif
+    const bool usePolygonSoup = true,
     const char* gridName = NULL,
     GA_PrimitiveGroup* surfaceGroup = NULL,
     GA_PrimitiveGroup* interiorGroup = NULL,
@@ -353,16 +412,18 @@ copyMesh(
     const char exteriorFlag = char(openvdb::tools::POLYFLAG_EXTERIOR);
     const char seamLineFlag = char(openvdb::tools::POLYFLAG_FRACTURE_SEAM);
 
-    const GA_Index firstPrim = detail.primitives().entries();
+    const GA_Index firstPrim = detail.getNumPrimitives();
 
 #if (UT_VERSION_INT < 0x0c0500F5) // earlier than 12.5.245
+
+    bool groupSeamPoints = seamPointGroup && !mesher.pointFlags().empty();
 
     const GA_Offset lastIdx(detail.getNumPoints());
     for (size_t n = 0, N = mesher.pointListSize(); n < N; ++n) {
         GA_Offset ptoff = detail.appendPointOffset();
         detail.setPos3(ptoff, points[n].x(), points[n].y(), points[n].z());
 
-        if (seamPointGroup && mesher.pointFlags()[n]) {
+        if (groupSeamPoints && mesher.pointFlags()[n]) {
             seamPointGroup->addOffset(ptoff);
         }
     }
@@ -425,7 +486,7 @@ copyMesh(
     pthandle.setBlock(startpt, npoints, (UT_Vector3 *)points.get());
 
     // group fracture seam points
-    if (seamPointGroup) {
+    if (seamPointGroup && GA_Size(mesher.pointFlags().size()) == npoints) {
         GA_Offset ptoff = startpt;
         for (GA_Size i = 0; i < npoints; ++i) {
 
@@ -500,6 +561,20 @@ copyMesh(
         }
     }
 
+    bool shared_vertices = true;
+    if (usePolygonSoup) {
+        // NOTE: Since we could be using the same points for multiple
+        //       polysoups, and the shared vertices option assumes that
+        //       the points are only used by this polysoup, we have to
+        //       use the unique vertices option.
+        int num_prims = 0;
+        for (int flags = 0; flags < 4; ++flags) {
+            if (!nquads[flags] && !ntris[flags]) continue;
+            num_prims++;
+        }
+        shared_vertices = (num_prims <= 1);
+    }
+
 
     for (int flags = 0; flags < 4; ++flags) {
         if (!nquads[flags] && !ntris[flags]) continue;
@@ -508,21 +583,43 @@ copyMesh(
         if (nquads[flags]) sizelist.append(4, nquads[flags]);
         if (ntris[flags])  sizelist.append(3, ntris[flags]);
 
+#if (UT_VERSION_INT >= 0x0d050013) // 13.5.19 or later
+        GA_Detail::OffsetMarker marker(detail);
+#else
         GU_ConvertMarker marker(detail);
+#endif
 
-        GU_PrimPoly::buildBlock(&detail, startpt, npoints, sizelist, verts[flags].array());
+        if (usePolygonSoup) {
+            GU_PrimPolySoup::build(
+                &detail, startpt, npoints, sizelist, verts[flags].array(), shared_vertices);
+        } else {
+            GU_PrimPoly::buildBlock(&detail, startpt, npoints, sizelist, verts[flags].array());
+        }
 
-        GA_Range range = marker.getPrimitives();
+#if (UT_VERSION_INT >= 0x0d050013) // 13.5.19 or later
+        GA_Range range(marker.primitiveRange());
+        //GA_Range pntRange(marker.pointRange());
+#else
+        GA_Range range(marker.getPrimitives());
+        //GA_Range pntRange(marker.getPoints());
+#endif
+        /*GU_ConvertParms parms;
+        parms.preserveGroups = true;
+        GUconvertCopySingleVertexPrimAttribsAndGroups(parms,
+            *srcvdb->getParent(), srcvdb->getMapOffset(), detail,
+            range, pntRange);*/
 
+        //if (delgroup)                       delgroup->removeRange(range);
         if (seamGroup && (flags & 1))       seamGroup->addRange(range);
         if (surfaceGroup && (flags & 2))    surfaceGroup->addRange(range);
         if (interiorGroup && !(flags & 2))  interiorGroup->addRange(range);
     }
+
 #endif // 12.5.245 or later
 
 
     // Keep VDB grid name
-    const GA_Index lastPrim = detail.primitives().entries();
+    const GA_Index lastPrim = detail.getNumPrimitives();
     if (gridName != NULL && firstPrim != lastPrim) {
 
         GA_RWAttributeRef aRef = detail.findPrimitiveAttribute("name");
@@ -571,12 +668,19 @@ SOP_OpenVDB_To_Polygons::cookMySop(OP_Context& context)
         }
 
         // Eval attributes
+#if HAVE_POLYSOUP
+        const bool usePolygonSoup = evalInt("geometrytype", 0, time) == 0;
+#else
+        const bool usePolygonSoup = false;
+#endif
+
         const double adaptivity = double(evalFloat("adaptivity", 0, time));
         const double iso = double(evalFloat("isovalue", 0, time));
-        const bool computeNormals = evalInt("computenormals", 0, time);
+        const bool computeNormals = !usePolygonSoup && evalInt("computenormals", 0, time);
         const bool keepVdbName = evalInt("keepvdbname", 0, time);
-        const float maskoffset = evalFloat("surfacemaskoffset", 0, time);
-        const bool invertmask = evalInt("invertmask", 0, time);
+        const float maskoffset = static_cast<float>(evalFloat("surfacemaskoffset", 0, time));
+        const bool invertmask = evalInt("invertsurfacemask", 0, time);
+
 
         // Setup level set mesher
         openvdb::tools::VolumeToMesh mesher(iso, adaptivity);
@@ -699,8 +803,20 @@ SOP_OpenVDB_To_Polygons::cookMySop(OP_Context& context)
             for (; vdbIt; ++vdbIt) {
 
                 if (boss.wasInterrupted()) break;
-                GEOvdbProcessTypedGridScalar(*vdbIt.getPrimitive(), mesher);
-                copyMesh(*gdp, mesher, boss,
+                //GEOvdbProcessTypedGridScalar(*vdbIt.getPrimitive(), mesher);
+
+                if (!GEOvdbProcessTypedGridScalar(*vdbIt.getPrimitive(), mesher)) {
+
+                    if (vdbIt->getGrid().type() == openvdb::BoolGrid::gridType()) {
+
+                        openvdb::BoolGrid::ConstPtr gridPtr =
+                            openvdb::gridConstPtrCast<openvdb::BoolGrid>(vdbIt->getGridPtr());
+
+                        mesher(*gridPtr);
+                    }
+                }
+
+                copyMesh(*gdp, mesher, boss, usePolygonSoup,
                     keepVdbName ? vdbIt.getPrimitive()->getGridName() : NULL);
             }
 
@@ -734,11 +850,12 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
     const fpreal time)
 {
     if (refGeo == NULL) return;
-    const bool computeNormals = evalInt("computenormals", 0, time);
+    const bool usePolygonSoup = evalInt("geometrytype", 0, time) == 0;
+    const bool computeNormals = !usePolygonSoup && evalInt("computenormals", 0, time);
     const bool transferAttributes = evalInt("transferattributes", 0, time);
     const bool keepVdbName = evalInt("keepvdbname", 0, time);
     const bool sharpenFeatures = evalInt("sharpenfeatures", 0, time);
-    const double edgetolerance = double(evalFloat("edgetolerance", 0, time));
+    const float edgetolerance = static_cast<float>(evalFloat("edgetolerance", 0, time));
 
     typedef typename GridType::TreeType TreeType;
     typedef typename GridType::ValueType ValueType;
@@ -806,7 +923,8 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
         if (gridClass == openvdb::GRID_LEVEL_SET) {
             converter.convertToLevelSet(pointList, primList);
         } else {
-            const ValueType bandWidth = backgroundValue / transform->voxelSize()[0];
+            const ValueType bandWidth =
+                static_cast<ValueType>(backgroundValue / transform->voxelSize()[0]);
             converter.convertToLevelSet(pointList, primList, bandWidth, bandWidth);
         }
 
@@ -832,7 +950,7 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
             op(*refGeo, indexGrid->tree(), maskLeafs, edgetolerance);
         op.run();
 
-        maskTree->pruneInactive();
+        openvdb::tools::pruneInactive(*maskTree);
 
         openvdb::tools::dilateVoxels(*maskTree, 2);
 
@@ -903,7 +1021,7 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
 
         mesher(*grid);
 
-        copyMesh(*gdp, mesher, boss, keepVdbName ? grid->getName().c_str() : NULL,
+        copyMesh(*gdp, mesher, boss, usePolygonSoup, keepVdbName ? grid->getName().c_str() : NULL,
             surfaceGroup, interiorGroup, seamGroup, seamPointGroup);
     }
 
@@ -920,7 +1038,7 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
     if (!boss.wasInterrupted() && computeNormals) {
 
         UTparallelFor(GA_SplittableRange(gdp->getPrimitiveRange()),
-            hvdb::VertexNormalOp(*gdp, interiorGroup, (transferAttributes ? -1.0 : 0.7) ));
+            hvdb::VertexNormalOp(*gdp, interiorGroup, (transferAttributes ? -1.0f : 0.7f) ));
 
         if (!interiorGroup) {
             addWarning(SOP_MESSAGE, "More accurate vertex normals can be generated "
@@ -955,6 +1073,6 @@ SOP_OpenVDB_To_Polygons::referenceMeshing(
     }
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

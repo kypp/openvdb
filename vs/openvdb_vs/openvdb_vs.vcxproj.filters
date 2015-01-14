@@ -72,6 +72,9 @@
     <ClCompile Include="..\..\openvdb\util\Util.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\openvdb\io\TempFile.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\openvdb\Exceptions.h">

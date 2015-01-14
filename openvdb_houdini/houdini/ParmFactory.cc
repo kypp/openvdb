@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -38,9 +38,13 @@
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_Selection.h>
+#include <GA/GA_AIFSharedStringTuple.h>
+#include <GA/GA_Attribute.h>
+#include <GA/GA_AttributeRef.h>
 #include <OP/OP_OperatorTable.h>
 #include <PRM/PRM_Parm.h>
 #include <PRM/PRM_SharedFunc.h>
+#include <UT/UT_IntArray.h>
 #include <UT/UT_Version.h>
 #include <UT/UT_WorkArgs.h>
 #include <cstring> // for ::strdup()
@@ -106,7 +110,7 @@ ParmList::endSwitcher()
             if (const char* s = switcherParm.getLabel()) label = s;
             mParmVec[info->parmIdx] =
                 ParmFactory(PRM_SWITCHER, token.c_str(), label.c_str())
-                .setVectorSize(info->folders.size())
+                .setVectorSize(int(info->folders.size()))
                 .setDefault(info->folders)
                 .get();
         }
@@ -215,7 +219,34 @@ ParmFactory&
 ParmFactory::setCallbackFunc(const PRM_Callback& f) { mImpl->callbackFunc = f; return *this; }
 
 ParmFactory&
-ParmFactory::setChoiceList(const PRM_ChoiceList* c) { mImpl->choicelist = c; return *this; }
+ParmFactory::setChoiceList(const PRM_ChoiceList* c)
+{
+    mImpl->choicelist = c;
+
+#if (UT_VERSION_INT >= 0x0e000075) // 14.0.117 or later
+    if (c == &PrimGroupMenuInput1) {
+        setSpareData(SOP_Node::getGroupSelectButton(GA_GROUP_PRIMITIVE,
+            NULL, 0, &SOP_Node::theFirstInput));
+    } else if (c == &PrimGroupMenuInput2) {
+        setSpareData(SOP_Node::getGroupSelectButton(GA_GROUP_PRIMITIVE,
+            NULL, 1, &SOP_Node::theSecondInput));
+    } else if (c == &PrimGroupMenuInput3) {
+        setSpareData(SOP_Node::getGroupSelectButton(GA_GROUP_PRIMITIVE,
+            NULL, 2, &SOP_Node::theThirdInput));
+    }
+#else
+    if (c == &PrimGroupMenuInput1) {
+        setSpareData(&SOP_Node::theFirstInput);
+    } else if (c == &PrimGroupMenuInput2) {
+        setSpareData(&SOP_Node::theSecondInput);
+    } else if (c == &PrimGroupMenuInput3) {
+        setSpareData(&SOP_Node::theThirdInput);
+    }
+#endif
+
+    return *this;
+}
+
 
 /// @todo Merge this into setChoiceListItems() once the deprecated
 /// setChoiceList() overloads have been removed.
@@ -442,7 +473,8 @@ namespace {
 class OP_OperatorDW: public OP_Operator
 {
 public:
-    OP_OperatorDW(OpFactory::OpFlavor flavor,
+    OP_OperatorDW(
+        OpFactory::OpFlavor,
         const char* name,
         const char* english,
         OP_Constructor construct,
@@ -509,7 +541,7 @@ struct OpFactory::Impl
     OP_OperatorDW* get()
     {
         // Get the number of required inputs.
-        const unsigned minSources = mInputLabels.size();
+        const unsigned minSources = unsigned(mInputLabels.size());
 
         // Append optional input labels to required input labels.
         mInputLabels.insert(mInputLabels.end(),
@@ -517,7 +549,7 @@ struct OpFactory::Impl
 
         // Ensure that the maximum number of inputs is at least as large
         // as the number of labeled inputs.
-        mMaxSources = std::max<unsigned>(mInputLabels.size(), mMaxSources);
+        mMaxSources = std::max<unsigned>(unsigned(mInputLabels.size()), mMaxSources);
 
         mInputLabels.push_back(NULL);
 
@@ -730,10 +762,14 @@ DWAOpPolicy::getName(const OpFactory&, const std::string& english)
 std::string
 DWAOpPolicy::getHelpURL(const OpFactory& factory)
 {
+#if defined(PRODDEV_BUILD) || defined(DWREAL_IS_DOUBLE)
     std::string url("http://mydw.anim.dreamworks.com/display/FX/Houdini+");
     url += factory.flavorString(); // append "SOP", "POP", etc.
     url += "_" + factory.name();
     return url;
+#else
+    return "";
+#endif
 }
 
 
@@ -741,6 +777,10 @@ DWAOpPolicy::getHelpURL(const OpFactory& factory)
 
 
 #if (UT_VERSION_INT >= 0x0d000000) // 13.0.0 or later
+
+const PRM_ChoiceList PrimGroupMenuInput1 = SOP_Node::primGroupMenu;
+const PRM_ChoiceList PrimGroupMenuInput2 = SOP_Node::primGroupMenu;
+const PRM_ChoiceList PrimGroupMenuInput3 = SOP_Node::primGroupMenu;
 
 const PRM_ChoiceList PrimGroupMenu = SOP_Node::primGroupMenu;
 
@@ -807,10 +847,13 @@ sopBuildGridMenu(void *data, PRM_Name *menuEntries, int themenusize,
     if (gdp) {
         ithead = gdp->primitiveGroups().beginTraverse();
 
-        GEO_AttributeHandle name_gah;
-        name_gah = gdp->getPrimAttribute("name");
-        if (name_gah.isAttributeValid()) {
-            name_gah.getDefinedStrings(allnames);
+        GA_ROAttributeRef aRef = gdp->findPrimitiveAttribute("name");
+        if (aRef.isValid()) {
+            const GA_AIFSharedStringTuple *stuple = aRef.getAttribute()->getAIFSharedStringTuple();
+            if (stuple) {
+                UT_IntArray handles;
+                stuple->extractStrings(aRef.getAttribute(), allnames, handles);
+            }
         }
     }
 
@@ -907,117 +950,34 @@ sopBuildGridMenu(void *data, PRM_Name *menuEntries, int themenusize,
 
 
 #ifdef _MSC_VER
+
+OPENVDB_HOUDINI_API const PRM_ChoiceList
+PrimGroupMenuInput1(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+OPENVDB_HOUDINI_API const PRM_ChoiceList
+PrimGroupMenuInput2(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+OPENVDB_HOUDINI_API const PRM_ChoiceList
+PrimGroupMenuInput3(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+
 OPENVDB_HOUDINI_API const PRM_ChoiceList PrimGroupMenu(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+
 #else
+
+const PRM_ChoiceList
+PrimGroupMenuInput1(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+const PRM_ChoiceList
+PrimGroupMenuInput2(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+const PRM_ChoiceList
+PrimGroupMenuInput3(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+
 const PRM_ChoiceList PrimGroupMenu(PRM_CHOICELIST_TOGGLE, sopBuildGridMenu);
+
 #endif
 
 #endif // earlier than 13.0.0
 
 
-////////////////////////////////////////
-
-
-void
-createBox(GU_Detail& gdp, UT_Vector3 corners[8], const UT_Vector3* color,
-    bool shaded, float alpha)
-{
-    // Create points
-    GA_Offset ptoff[8];
-    for (size_t i = 0; i < 8; ++i) {
-        ptoff[i] = gdp.appendPointOffset();
-        gdp.setPos3(ptoff[i], corners[i].x(), corners[i].y(), corners[i].z());
-    }
-
-    if (color != NULL) {
-        GA_RWHandleV3 cd(gdp.addDiffuseAttribute(GA_ATTRIB_POINT).getAttribute());
-        for (size_t i = 0; i < 8; ++i) {
-            cd.set(ptoff[i], *color);
-        }
-    }
-
-    if (alpha < 0.99) {
-        GA_RWHandleF A(gdp.addAlphaAttribute(GA_ATTRIB_POINT).getAttribute());
-        for (size_t i = 0; i < 8; ++i) {
-            A.set(ptoff[i], alpha);
-        }
-    }
-
-    GEO_PrimPoly *poly;
-    if (shaded) {
-        // Bottom
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[0]);
-        poly->appendVertex(ptoff[1]);
-        poly->appendVertex(ptoff[2]);
-        poly->appendVertex(ptoff[3]);
-        poly->close();
-
-        // Top
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[7]);
-        poly->appendVertex(ptoff[6]);
-        poly->appendVertex(ptoff[5]);
-        poly->appendVertex(ptoff[4]);
-        poly->close();
-
-        // Front
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[4]);
-        poly->appendVertex(ptoff[5]);
-        poly->appendVertex(ptoff[1]);
-        poly->appendVertex(ptoff[0]);
-        poly->close();
-
-        // Back
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[6]);
-        poly->appendVertex(ptoff[7]);
-        poly->appendVertex(ptoff[3]);
-        poly->appendVertex(ptoff[2]);
-        poly->close();
-
-        // Left
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[0]);
-        poly->appendVertex(ptoff[3]);
-        poly->appendVertex(ptoff[7]);
-        poly->appendVertex(ptoff[4]);
-        poly->close();
-
-        // Right
-        poly = GU_PrimPoly::build(&gdp, 0);
-        poly->appendVertex(ptoff[1]);
-        poly->appendVertex(ptoff[5]);
-        poly->appendVertex(ptoff[6]);
-        poly->appendVertex(ptoff[2]);
-        poly->close();
-
-    } else {
-
-        // 12 Edges as one line
-        poly = GU_PrimPoly::build(&gdp, 0, GU_POLY_OPEN);
-        poly->appendVertex(ptoff[0]);
-        poly->appendVertex(ptoff[1]);
-        poly->appendVertex(ptoff[2]);
-        poly->appendVertex(ptoff[3]);
-        poly->appendVertex(ptoff[0]);
-        poly->appendVertex(ptoff[4]);
-        poly->appendVertex(ptoff[5]);
-        poly->appendVertex(ptoff[6]);
-        poly->appendVertex(ptoff[7]);
-        poly->appendVertex(ptoff[4]);
-        poly->appendVertex(ptoff[5]);
-        poly->appendVertex(ptoff[1]);
-        poly->appendVertex(ptoff[2]);
-        poly->appendVertex(ptoff[6]);
-        poly->appendVertex(ptoff[7]);
-        poly->appendVertex(ptoff[3]);
-    }
-} // createBox
-
 } // namespace houdini_utils
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

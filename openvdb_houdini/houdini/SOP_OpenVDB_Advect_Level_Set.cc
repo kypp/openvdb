@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -171,14 +171,12 @@ newSopOperator(OP_OperatorTable* table)
     // Level set grid
     parms.add(hutil::ParmFactory(PRM_STRING, "lsGroup", "Group")
         .setHelpText("Level set grid(s) to advect.")
-        .setChoiceList(&hutil::PrimGroupMenu)
-        .setSpareData(&SOP_Node::theFirstInput));
+        .setChoiceList(&hutil::PrimGroupMenuInput1));
 
     // Velocity grid
     parms.add(hutil::ParmFactory(PRM_STRING, "velGroup", "Velocity")
         .setHelpText("Velocity grid")
-        .setChoiceList(&hutil::PrimGroupMenu)
-        .setSpareData(&SOP_Node::theSecondInput));
+        .setChoiceList(&hutil::PrimGroupMenuInput2));
 
     parms.add(hutil::ParmFactory(PRM_HEADING, "advectionHeading", "Advection"));
 
@@ -340,7 +338,7 @@ SOP_OpenVDB_Advect_Level_Set::evalAdvectionParms(OP_Context& context, AdvectionP
     evalString(str, "lsGroup", 0, now);
     parms.mLSGroup = matchGroup(*gdp, str.toStdString());
 
-    parms.mTimeStep = evalFloat("timestep", 0, now);
+    parms.mTimeStep = static_cast<float>(evalFloat("timestep", 0, now));
 
     evalString(str, "advectSpatial", 0, now);
 
@@ -484,6 +482,6 @@ SOP_OpenVDB_Advect_Level_Set::processGrids(AdvectionParms& parms, hvdb::Interrup
     return true;
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -42,8 +42,10 @@
 #include <openvdb/tools/RayIntersector.h>
 
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_ParallelUtil.h>
 #include <UT/UT_Version.h>
-#include <GA/GA_PageIterator.h>
+#include <GA/GA_PageHandle.h>
+#include <GA/GA_SplittableRange.h>
 #include <GU/GU_Detail.h>
 #include <PRM/PRM_Parm.h>
 #include <GU/GU_PrimSphere.h>
@@ -88,7 +90,7 @@ newSopOperator(OP_OperatorTable* table)
 
     parms.add(hutil::ParmFactory(PRM_STRING, "group", "Group")
         .setHelpText("Specify a subset of the input VDB grids to surface.")
-        .setChoiceList(&hutil::PrimGroupMenu));
+        .setChoiceList(&hutil::PrimGroupMenuInput1));
 
     { // Method
         const char* items[] = {
@@ -545,6 +547,6 @@ SOP_OpenVDB_Ray::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

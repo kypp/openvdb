@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -38,6 +38,7 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/MeshToVolume.h> // for openvdb::tools::MeshToVoxelEdgeData
 #include <openvdb/util/Util.h> // for openvdb::util::COORD_OFFSETS
+
 #include <GU/GU_Detail.h>
 #include <UT/UT_Version.h>
 #include <boost/shared_ptr.hpp>
@@ -147,7 +148,7 @@ private:
 class OPENVDB_HOUDINI_API VertexNormalOp
 {
 public:
-    VertexNormalOp(GU_Detail&, const GA_PrimitiveGroup* interiorPrims = NULL, float angle = 0.7);
+    VertexNormalOp(GU_Detail&, const GA_PrimitiveGroup* interiorPrims = NULL, float angle = 0.7f);
     void operator()(const GA_SplittableRange&) const;
 
 private:
@@ -284,6 +285,7 @@ GenAdaptivityMaskOp<IndexTreeType, BoolTreeType>::operator()(
     }
 }
 
+
 } // namespace openvdb_houdini
 
 
@@ -352,6 +354,6 @@ using GU_Convert_H12_5::GUconvertCopySingleVertexPrimAttribsAndGroups;
 
 #endif // OPENVDB_HOUDINI_GEOMETRY_UTIL_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

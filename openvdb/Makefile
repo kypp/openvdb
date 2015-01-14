@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013 DreamWorks Animation LLC
+# Copyright (c) 2012-2014 DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -45,12 +45,14 @@
 #
 #   all                 [default target] all of the above
 #   install             install all of the above except vdb_test
-#                       into subdirectories of INSTALL_DIR
+#                       into subdirectories of DESTDIR
 #   depend              recompute source file header dependencies
 #   clean               delete generated files from the local directory
 #   test                run tests
 #
 # Options:
+#   abi=2               build for compatibility with the OpenVDB 2.x Grid ABI
+#                       (some OpenVDB 3.x features will be disabled)
 #   shared=no           link executables against static OpenVDB libraries
 #                       (default: link against shared libraries)
 #   debug=yes           build with debugging symbols and without optimization
@@ -59,7 +61,7 @@
 
 #
 # The following variables must be defined, either here or on the command line
-# (e.g., "make install INSTALL_DIR=/usr/local"):
+# (e.g., "make install DESTDIR=/usr/local"):
 #
 # Note that if you plan to build the Houdini OpenVDB tools (distributed
 # separately), you must build the OpenVDB library and the Houdini tools
@@ -79,21 +81,26 @@
 #
 
 # The directory into which to install libraries, executables and header files
-INSTALL_DIR := /tmp/OpenVDB
+DESTDIR := /tmp/OpenVDB
 
 # The parent directory of the boost/ header directory
 BOOST_INCL_DIR := $(HT)/include
+# The directory containing libboost_iostreams, libboost_system, etc.
+BOOST_LIB_DIR := $(HDSO)
+BOOST_LIB := -lboost_iostreams -lboost_system
+BOOST_THREAD_LIB := -lboost_thread
 
 # The parent directory of the OpenEXR/ header directory
 EXR_INCL_DIR := $(HT)/include
-# The directory containing libIlmImf, libIlmThread, etc.
+# The directory containing IlmImf
 EXR_LIB_DIR := $(HDSO)
-EXR_LIB := -lIlmImf -lIlmThread -lIex -lImath
+EXR_LIB := -lIlmImf
 
 # The parent directory of the OpenEXR/ header directory (which contains half.h)
-HALF_INCL_DIR := $(EXR_INCL_DIR)
-# The directory containing libHalf
-HALF_LIB_DIR := $(EXR_LIB_DIR)
+ILMBASE_INCL_DIR := $(EXR_INCL_DIR)
+# The directory containing libIlmThread, libIlmThread, libHalf etc.
+ILMBASE_LIB_DIR := $(EXR_LIB_DIR)
+ILMBASE_LIB := -lIlmThread -lIex -lImath
 HALF_LIB := -lHalf
 
 # The parent directory of the tbb/ header directory
@@ -101,6 +108,13 @@ TBB_INCL_DIR := $(HT)/include
 # The directory containing libtbb
 TBB_LIB_DIR := $(HDSO)
 TBB_LIB := -ltbb
+
+# The parent directory of the blosc.h header
+# (leave blank if Blosc is unavailable)
+BLOSC_INCL_DIR := $(HT)/include
+# The directory containing libblosc
+BLOSC_LIB_DIR := $(HDSO)
+BLOSC_LIB := -lblosc
 
 # A scalable, concurrent malloc replacement library
 # such as jemalloc (included in the Houdini HDK) or TBB malloc
@@ -126,10 +140,13 @@ LOG4CPLUS_LIB := -llog4cplus
 
 # The directory containing glfw.h
 # (leave blank if GLFW is unavailable)
-GLFW_INCL_DIR := /rel/third_party/glfw/current/include
+GLFW_INCL_DIR := /rel/third_party/glfw/glfw-3.0.1/include
 # The directory containing libglfw
-GLFW_LIB_DIR := /rel/third_party/glfw/current/lib
+GLFW_LIB_DIR := /rel/third_party/glfw/glfw-3.0.1/lib
 GLFW_LIB := -lglfw
+# The major version number of the GLFW library
+# (header filenames changed between GLFW 2 and 3, so this must be specified explicitly)
+GLFW_MAJOR_VERSION := 3
 
 # The version of Python for which to build the OpenVDB module
 # (leave blank if Python is unavailable)
@@ -172,6 +189,10 @@ SHELL = /bin/bash
 # Turn off implicit rules for speed.
 .SUFFIXES:
 
+ifneq (,$(INSTALL_DIR))
+    $(warning Warning: $$(INSTALL_DIR) is no longer used; set $$(DESTDIR) instead.)
+endif
+
 # Determine the platform.
 ifeq ("$(OS)","Windows_NT")
     WINDOWS_NT := 1
@@ -200,42 +221,65 @@ else
     QUIET_TEST := $(QUIET)
 endif
 
+has_blosc := no
+ifneq (,$(and $(BLOSC_LIB_DIR),$(BLOSC_INCL_DIR),$(BLOSC_LIB)))
+    has_blosc := yes
+endif
+
 has_glfw := no
-ifeq (3,$(words $(strip $(GLFW_LIB_DIR) $(GLFW_INCL_DIR) $(GLFW_LIB))))
+ifneq (,$(and $(GLFW_LIB_DIR),$(GLFW_INCL_DIR),$(GLFW_LIB)))
     has_glfw := yes
 endif
 
 has_log4cplus := no
-ifeq (3,$(words $(strip $(LOG4CPLUS_LIB_DIR) $(LOG4CPLUS_INCL_DIR) $(LOG4CPLUS_LIB))))
+ifneq (,$(and $(LOG4CPLUS_LIB_DIR),$(LOG4CPLUS_INCL_DIR),$(LOG4CPLUS_LIB)))
     has_log4cplus := yes
 endif
 
 has_python := no
-ifeq (7,$(words $(strip $(PYTHON_VERSION) $(PYTHON_LIB_DIR) $(PYTHON_INCL_DIR) \
-    $(PYCONFIG_INCL_DIR) $(PYTHON_LIB) $(BOOST_PYTHON_LIB_DIR) $(BOOST_PYTHON_LIB))))
+ifneq (,$(and $(PYTHON_VERSION),$(PYTHON_LIB_DIR),$(PYTHON_INCL_DIR), \
+    $(PYCONFIG_INCL_DIR),$(PYTHON_LIB),$(BOOST_PYTHON_LIB_DIR),$(BOOST_PYTHON_LIB)))
     has_python := yes
 endif
 
-INCLDIRS := -I . -I .. -I $(BOOST_INCL_DIR) -I $(HALF_INCL_DIR) -I $(TBB_INCL_DIR)
+INCLDIRS := -I . -I .. -isystem $(BOOST_INCL_DIR) -isystem $(ILMBASE_INCL_DIR) -isystem $(TBB_INCL_DIR)
+ifeq (yes,$(has_blosc))
+    INCLDIRS += -isystem $(BLOSC_INCL_DIR)
+endif
 ifeq (yes,$(has_log4cplus))
-	INCLDIRS += -I $(LOG4CPLUS_INCL_DIR)
+    INCLDIRS += -isystem $(LOG4CPLUS_INCL_DIR)
 endif
 
 CXXFLAGS += -m32 -pthread -std=c++11 $(OPTIMIZE) $(INCLDIRS)
+ifeq (yes,$(has_blosc))
+    CXXFLAGS += -DOPENVDB_USE_BLOSC
+endif
 ifeq (yes,$(has_log4cplus))
-	CXXFLAGS += -DOPENVDB_USE_LOG4CPLUS
+    CXXFLAGS += -DOPENVDB_USE_LOG4CPLUS
+endif
+ifeq (2,$(strip $(abi)))
+    CXXFLAGS += -DOPENVDB_2_ABI_COMPATIBLE
+endif
+ifneq (2,$(strip $(GLFW_MAJOR_VERSION)))
+    CXXFLAGS += -DOPENVDB_USE_GLFW_3
 endif
 
 LIBS := \
     -ldl -lm -lz \
-    -L$(HALF_LIB_DIR) $(HALF_LIB) \
+    -L$(ILMBASE_LIB_DIR) $(HALF_LIB) \
     -L$(TBB_LIB_DIR) $(TBB_LIB) \
+    -L$(BOOST_LIB_DIR) $(BOOST_LIB) \
 #
 LIBS_RPATH := \
     -ldl -lm -lz \
-    -Wl,-rpath,$(HALF_LIB_DIR) -L$(HALF_LIB_DIR) $(HALF_LIB) \
+    -Wl,-rpath,$(ILMBASE_LIB_DIR) -L$(ILMBASE_LIB_DIR) $(HALF_LIB) \
     -Wl,-rpath,$(TBB_LIB_DIR) -L$(TBB_LIB_DIR) $(TBB_LIB) \
+    -Wl,-rpath,$(BOOST_LIB_DIR) -L$(BOOST_LIB_DIR) $(BOOST_LIB) \
 #
+ifeq (yes,$(has_blosc))
+    LIBS += -L$(BLOSC_LIB_DIR) $(BLOSC_LIB)
+    LIBS_RPATH += -Wl,-rpath,$(BLOSC_LIB_DIR) -L$(BLOSC_LIB_DIR) $(BLOSC_LIB)
+endif
 ifeq (yes,$(has_log4cplus))
     LIBS += -L$(LOG4CPLUS_LIB_DIR) $(LOG4CPLUS_LIB)
     LIBS_RPATH += -Wl,-rpath,$(LOG4CPLUS_LIB_DIR) -L$(LOG4CPLUS_LIB_DIR) $(LOG4CPLUS_LIB)
@@ -257,8 +301,10 @@ INCLUDE_NAMES := \
     io/Compression.h \
     io/File.h \
     io/GridDescriptor.h \
+    io/io.h \
     io/Queue.h \
     io/Stream.h \
+    io/TempFile.h \
     math/BBox.h \
     math/Coord.h \
     math/DDA.h \
@@ -289,9 +335,12 @@ INCLUDE_NAMES := \
     openvdb.h \
     Platform.h \
     PlatformConfig.h \
+    tools/ChangeBackground.h \
+    tools/Clip.h \
     tools/Composite.h \
     tools/Dense.h \
     tools/DenseSparseTools.h \
+    tools/Diagnostics.h \
     tools/Filter.h \
     tools/GridOperators.h \
     tools/GridTransformer.h \
@@ -309,9 +358,13 @@ INCLUDE_NAMES := \
     tools/Morphology.h \
     tools/ParticlesToLevelSet.h \
     tools/PointAdvect.h \
+    tools/PointIndexGrid.h \
+    tools/PointPartitioner.h \
     tools/PointScatter.h \
+    tools/Prune.h \
     tools/RayIntersector.h \
     tools/RayTracer.h \
+    tools/SignedFloodFill.h \
     tools/Statistics.h \
     tools/ValueTransformer.h \
     tools/VectorTransformer.h \
@@ -322,11 +375,11 @@ INCLUDE_NAMES := \
     tree/LeafManager.h \
     tree/LeafNode.h \
     tree/LeafNodeBool.h \
+    tree/NodeManager.h \
     tree/NodeUnion.h \
     tree/RootNode.h \
     tree/Tree.h \
     tree/TreeIterator.h \
-    tree/Util.h \
     tree/ValueAccessor.h \
     Types.h \
     util/CpuTimer.h \
@@ -348,6 +401,7 @@ SRC_NAMES := \
     io/GridDescriptor.cc \
     io/Queue.cc \
     io/Stream.cc \
+    io/TempFile.cc \
     math/Hermite.cc \
     math/Maps.cc \
     math/Proximity.cc \
@@ -373,6 +427,7 @@ UNITTEST_SRC_NAMES := \
     unittest/TestCurl.cc \
     unittest/TestDense.cc \
     unittest/TestDenseSparseTools.cc \
+    unittest/TestDiagnostics.cc \
     unittest/TestDivergence.cc \
     unittest/TestDoubleMetadata.cc \
     unittest/TestExceptions.cc \
@@ -409,6 +464,8 @@ UNITTEST_SRC_NAMES := \
     unittest/TestNodeIterator.cc \
     unittest/TestNodeMask.cc \
     unittest/TestParticlesToLevelSet.cc \
+    unittest/TestPointIndexGrid.cc \
+    unittest/TestPointPartitioner.cc \
     unittest/TestPrePostAPI.cc \
     unittest/TestQuadraticInterp.cc \
     unittest/TestQuantizedUnitVec.cc \
@@ -454,9 +511,9 @@ LIBVIEWER_SRC_NAMES := \
     viewer/Viewer.cc \
 #
 ifdef MBSD
-	LIBVIEWER_FLAGS := -framework Cocoa -framework OpenGL -framework IOKit
+    LIBVIEWER_FLAGS := -framework Cocoa -framework OpenGL -framework IOKit
 else
-	LIBVIEWER_FLAGS := -lGL -lGLU
+    LIBVIEWER_FLAGS := -lGL -lGLU
 endif
 
 
@@ -488,9 +545,9 @@ PYTHON_SRC_NAMES := \
     python/pyTransform.cc \
     python/pyVec3Grid.cc \
 #
-PYCXXFLAGS := -fPIC -I python -I $(PYTHON_INCL_DIR) -I $(PYCONFIG_INCL_DIR)
-ifneq ($(strip $(NUMPY_INCL_DIR)),)
-PYCXXFLAGS += -I $(NUMPY_INCL_DIR) -DPY_OPENVDB_USE_NUMPY
+PYCXXFLAGS := -fPIC -isystem python -isystem $(PYTHON_INCL_DIR) -isystem $(PYCONFIG_INCL_DIR)
+ifneq (,$(strip $(NUMPY_INCL_DIR)))
+PYCXXFLAGS += -isystem $(NUMPY_INCL_DIR) -DPY_OPENVDB_USE_NUMPY
 endif
 ifneq (no,$(strip $(PYTHON_WRAP_ALL_GRID_TYPES)))
 PYCXXFLAGS += -DPY_OPENVDB_WRAP_ALL_GRID_TYPES
@@ -532,19 +589,31 @@ SO_VERSION=$(LIB_MAJOR_VERSION).$(LIB_MINOR_VERSION)
 
 LIBOPENVDB_NAME=libopenvdb
 LIBOPENVDB_STATIC := $(LIBOPENVDB_NAME).a
+ifndef MBSD
+LIBOPENVDB_SHARED_NAME := $(LIBOPENVDB_NAME).so
 LIBOPENVDB_SHARED := $(LIBOPENVDB_NAME).so.$(LIB_VERSION)
 LIBOPENVDB_SONAME := $(LIBOPENVDB_NAME).so.$(SO_VERSION)
-ifndef MBSD
 LIBOPENVDB_SONAME_FLAGS := -Wl,-soname,$(LIBOPENVDB_SONAME)
+else
+LIBOPENVDB_SHARED_NAME := $(LIBOPENVDB_NAME).dylib
+LIBOPENVDB_SHARED := $(LIBOPENVDB_NAME).$(LIB_VERSION).dylib
+LIBOPENVDB_SONAME := $(LIBOPENVDB_NAME).$(SO_VERSION).dylib
+LIBOPENVDB_SONAME_FLAGS := -Wl,-install_name,$(DESTDIR)/lib/$(LIBOPENVDB_SONAME)
 endif
 
 # TODO: libopenvdb_viewer is currently built into vdb_view and is not installed separately.
 LIBVIEWER_NAME=libopenvdb_viewer
 LIBVIEWER_STATIC := $(LIBVIEWER_NAME).a
+ifndef MBSD
+LIBVIEWER_SHARED_NAME := $(LIBVIEWER_NAME).so
 LIBVIEWER_SHARED := $(LIBVIEWER_NAME).so.$(LIB_VERSION)
 LIBVIEWER_SONAME := $(LIBVIEWER_NAME).so.$(SO_VERSION)
-ifndef MBSD
 LIBVIEWER_SONAME_FLAGS := -Wl,-soname,$(LIBVIEWER_SONAME)
+else
+LIBVIEWER_SHARED_NAME := $(LIBVIEWER_NAME).dylib
+LIBVIEWER_SHARED := $(LIBVIEWER_NAME).$(LIB_VERSION).dylib
+LIBVIEWER_SONAME := $(LIBVIEWER_NAME).$(SO_VERSION).dylib
+LIBVIEWER_SONAME_FLAGS := -Wl,-install_name,$(DESTDIR)/lib/$(LIBVIEWER_SONAME)
 endif
 
 PYTHON_MODULE_NAME=pyopenvdb
@@ -560,7 +629,7 @@ ifeq (no,$(strip $(shared)))
 else
     LIBOPENVDB := $(LIBOPENVDB_SHARED)
     LIBVIEWER := $(LIBVIEWER_SHARED)
-    LIBOPENVDB_RPATH := -Wl,-rpath,$(INSTALL_DIR)/lib
+    LIBOPENVDB_RPATH := -Wl,-rpath,$(DESTDIR)/lib
 endif # shared
 
 DEPEND := dependencies
@@ -576,7 +645,7 @@ ALL_PRODUCTS := \
     vdb_render \
     vdb_view \
     $(DEPEND) \
-    $(LIBOPENVDB_NAME).so \
+    $(LIBOPENVDB_SHARED_NAME) \
     $(LIBOPENVDB_SONAME) \
     $(PYTHON_MODULE) \
 #
@@ -598,16 +667,16 @@ $(OBJ_NAMES): %.o: %.cc
 ifneq (no,$(strip $(shared)))
 
 # Build shared library
-lib: $(LIBOPENVDB_NAME).so $(LIBOPENVDB_SONAME)
+lib: $(LIBOPENVDB_SHARED_NAME) $(LIBOPENVDB_SONAME)
 
-$(LIBOPENVDB_NAME).so: $(LIBOPENVDB_SHARED)
+$(LIBOPENVDB_SHARED_NAME): $(LIBOPENVDB_SHARED)
 	ln -f -s $< $@
 
 $(LIBOPENVDB_SONAME): $(LIBOPENVDB_SHARED)
 	ln -f -s $< $@
 
 $(LIBOPENVDB_SHARED): $(OBJ_NAMES)
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -shared -o $@ $^ $(LIBS_RPATH) $(LIBOPENVDB_SONAME_FLAGS)
 
 else
@@ -616,23 +685,24 @@ else
 lib: $(LIBOPENVDB)
 
 $(LIBOPENVDB_STATIC): $(OBJ_NAMES)
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(AR) cr $@ $^
 
 endif # shared
 
+
 $(DOC_INDEX): doxygen-config $(INCLUDE_NAMES) $(SRC_NAMES) $(DOC_FILES)
-	@echo "Generating documentation because of $(call list_deps)"
+	@echo "Generating documentation because of $(list_deps)"
 	echo 'OUTPUT_DIRECTORY=./doc' | cat doxygen-config - | $(DOXYGEN) - $(QUIET)
 
 $(DOC_PDF): doxygen-config $(INCLUDE_NAMES) $(SRC_NAMES) $(DOC_FILES)
-	@echo "Generating documentation because of $(call list_deps)"
+	@echo "Generating documentation because of $(list_deps)"
 	echo -e 'OUTPUT_DIRECTORY=./doc\nGENERATE_LATEX=YES\nGENERATE_HTML=NO' \
 	    | cat doxygen-config - | $(DOXYGEN) - $(QUIET) \
 	    && cd ./doc/latex && make refman.pdf $(QUIET) \
 	    && echo 'Created doc/latex/refman.pdf'
 
-ifneq ($(strip $(DOXYGEN)),)
+ifneq (,$(strip $(DOXYGEN)))
 doc: $(DOC_INDEX)
 pdfdoc: $(DOC_PDF)
 else
@@ -643,59 +713,62 @@ pdfdoc:
 endif
 
 vdb_print: $(LIBOPENVDB) cmd/openvdb_print/main.cc
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_print/main.cc -I . \
-	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB)
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
 
 vdb_render: $(LIBOPENVDB) cmd/openvdb_render/main.cc
-	@echo "Building $@ because of $(call list_deps)"
-	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_render/main.cc -I . -I $(EXR_INCL_DIR) \
-	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
+	@echo "Building $@ because of $(list_deps)"
+	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_render/main.cc -I . \
+	    -isystem $(EXR_INCL_DIR) -isystem $(ILMBASE_INCL_DIR) \
 	    -Wl,-rpath,$(EXR_LIB_DIR) -L$(EXR_LIB_DIR) $(EXR_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB)
+	    -Wl,-rpath,$(ILMBASE_LIB_DIR) -L$(ILMBASE_LIB_DIR) $(ILMBASE_LIB) \
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
+
+# Create an openvdb_viewer/ symlink to the viewer/ subdirectory,
+# to mirror the DWA directory structure.
+openvdb_viewer:
+	ln -f -s viewer openvdb_viewer
 
 ifneq (yes,$(has_glfw))
 vdb_view:
 	@echo "$@"': GLFW is unavailable'
 else
-# Create an openvdb_viewer/ symlink to the viewer/ subdirectory,
-# to mirror the DWA directory structure.
-openvdb_viewer:
-	ln -f -s viewer openvdb_viewer
 $(LIBVIEWER_INCLUDE_NAMES): openvdb_viewer
 
 $(LIBVIEWER_OBJ_NAMES): $(LIBVIEWER_INCLUDE_NAMES)
 $(LIBVIEWER_OBJ_NAMES): %.o: %.cc
-	@echo "Building $@ because of $(call list_deps)"
-	$(CXX) -c $(CXXFLAGS) -I . -I $(GLFW_INCL_DIR) -DGL_GLEXT_PROTOTYPES=1 -fPIC -o $@ $<
+	@echo "Building $@ because of $(list_deps)"
+	$(CXX) -c $(CXXFLAGS) -I . -isystem $(GLFW_INCL_DIR) -DGL_GLEXT_PROTOTYPES=1 -fPIC -o $@ $<
 
 vdb_view: $(LIBOPENVDB) $(LIBVIEWER_OBJ_NAMES) cmd/openvdb_view/main.cc
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ cmd/openvdb_view/main.cc $(LIBVIEWER_OBJ_NAMES) \
-		-I . -Wl,-rpath,$(GLFW_LIB_DIR) -L$(GLFW_LIB_DIR) $(GLFW_LIB) \
-		$(LIBVIEWER_FLAGS) $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB)
+	    -I . -Wl,-rpath,$(GLFW_LIB_DIR) -L$(GLFW_LIB_DIR) $(GLFW_LIB) \
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBVIEWER_FLAGS) $(LIBS_RPATH) $(BOOST_THREAD_LIB) $(CONCURRENT_MALLOC_LIB)
 endif
 
 
 # Build the Python module
 $(PYTHON_OBJ_NAMES): $(PYTHON_INCLUDE_NAMES)
 $(PYTHON_OBJ_NAMES): %.o: %.cc
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(CXX) -c $(CXXFLAGS) -I . $(PYCXXFLAGS) -o $@ $<
 $(PYTHON_MODULE): $(LIBOPENVDB) $(PYTHON_OBJ_NAMES)
-	@echo "Building $@ because of $(call list_deps)"
-	$(CXX) $(CXXFLAGS) $(PYCXXFLAGS) -shared $(PYTHON_SONAME_FLAGS) \
-	    -o $@ $(PYTHON_OBJ_NAMES) $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
+	@echo "Building $@ because of $(list_deps)"
+	$(CXX) $(CXXFLAGS) $(PYCXXFLAGS) -shared $(PYTHON_SONAME_FLAGS) -o $@ $(PYTHON_OBJ_NAMES) \
 	    -Wl,-rpath,$(PYTHON_LIB_DIR) -L$(PYTHON_LIB_DIR) $(PYTHON_LIB) \
 	    -Wl,-rpath,$(BOOST_PYTHON_LIB_DIR) -L$(BOOST_PYTHON_LIB_DIR) $(BOOST_PYTHON_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB)
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
 
 ifeq (yes,$(has_python))
-ifneq ($(strip $(EPYDOC)),)
+ifneq (,$(strip $(EPYDOC)))
 pydoc: $(PYTHON_MODULE) $(LIBOPENVDB_SONAME)
-	@echo "Generating Python module documentation because of $(call list_deps)"
+	@echo "Generating Python module documentation because of $(list_deps)"
 	pydocdir=doc/html/python; \
 	mkdir -p $${pydocdir}; \
 	echo "Created $${pydocdir}"; \
@@ -721,18 +794,18 @@ endif
 
 
 $(UNITTEST_OBJ_NAMES): %.o: %.cc
-	@echo "Building $@ because of $(call list_deps)"
-	$(CXX) -c $(CXXFLAGS) -I $(CPPUNIT_INCL_DIR) -fPIC -o $@ $<
+	@echo "Building $@ because of $(list_deps)"
+	$(CXX) -c $(CXXFLAGS) -isystem $(CPPUNIT_INCL_DIR) -fPIC -o $@ $<
 
-ifneq ($(strip $(CPPUNIT_INCL_DIR)),)
+ifneq (,$(strip $(CPPUNIT_INCL_DIR)))
 vdb_test: $(LIBOPENVDB) $(UNITTEST_OBJ_NAMES)
-	@echo "Building $@ because of $(call list_deps)"
+	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) -o $@ $(UNITTEST_OBJ_NAMES) \
-	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB) \
 	    -Wl,-rpath,$(CPPUNIT_LIB_DIR) -L$(CPPUNIT_LIB_DIR) $(CPPUNIT_LIB) \
-	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB)
+	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
 
-test: vdb_test
+test: lib vdb_test
 	@echo "Testing $(LIBOPENVDB_NAME)"
 	export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(CURDIR); ./vdb_test $(QUIET_TEST)
 else
@@ -743,50 +816,50 @@ test:
 endif
 
 install: lib python vdb_print vdb_render vdb_view doc pydoc
-	mkdir -p $(INSTALL_DIR)/include/openvdb
-	@echo "Created $(INSTALL_DIR)/include/openvdb"
-	pushd $(INSTALL_DIR)/include/openvdb > /dev/null; \
+	mkdir -p $(DESTDIR)/include/openvdb
+	@echo "Created $(DESTDIR)/include/openvdb"
+	pushd $(DESTDIR)/include/openvdb > /dev/null; \
 	    mkdir -p $(HEADER_SUBDIRS); popd > /dev/null
 	for f in $(INCLUDE_NAMES); \
-	    do cp -f $$f $(INSTALL_DIR)/include/openvdb/$$f; done
+	    do cp -f $$f $(DESTDIR)/include/openvdb/$$f; done
 	@#
 	if [ -f $(LIBVIEWER) ]; \
 	then \
-	    mkdir -p $(INSTALL_DIR)/include/openvdb_viewer; \
-	    echo "Created $(INSTALL_DIR)/include/openvdb_viewer"; \
-	    cp -f $(LIBVIEWER_PUBLIC_INCLUDE_NAMES) $(INSTALL_DIR)/include/openvdb_viewer/; \
+	    mkdir -p $(DESTDIR)/include/openvdb_viewer; \
+	    echo "Created $(DESTDIR)/include/openvdb_viewer"; \
+	    cp -f $(LIBVIEWER_PUBLIC_INCLUDE_NAMES) $(DESTDIR)/include/openvdb_viewer/; \
 	fi
-	@echo "Copied header files to $(INSTALL_DIR)/include"
+	@echo "Copied header files to $(DESTDIR)/include"
 	@#
-	mkdir -p $(INSTALL_DIR)/lib
-	@echo "Created $(INSTALL_DIR)/lib/"
-	cp -f $(LIBOPENVDB) $(INSTALL_DIR)/lib
-	pushd $(INSTALL_DIR)/lib > /dev/null; \
+	mkdir -p $(DESTDIR)/lib
+	@echo "Created $(DESTDIR)/lib/"
+	cp -f $(LIBOPENVDB) $(DESTDIR)/lib
+	pushd $(DESTDIR)/lib > /dev/null; \
 	    if [ -f $(LIBOPENVDB_SHARED) ]; then \
-	        ln -f -s $(LIBOPENVDB_SHARED) $(LIBOPENVDB_NAME).so; \
+	        ln -f -s $(LIBOPENVDB_SHARED) $(LIBOPENVDB_SHARED_NAME); \
 	        ln -f -s $(LIBOPENVDB_SHARED) $(LIBOPENVDB_SONAME); \
 	    fi; \
 	    popd > /dev/null
-	@echo "Copied libopenvdb to $(INSTALL_DIR)/lib/"
+	@echo "Copied libopenvdb to $(DESTDIR)/lib/"
 	@#
 	if [ -f $(LIBVIEWER) ]; \
 	then \
-	    cp -f $(LIBVIEWER) $(INSTALL_DIR)/lib; \
-	    pushd $(INSTALL_DIR)/lib > /dev/null; \
+	    cp -f $(LIBVIEWER) $(DESTDIR)/lib; \
+	    pushd $(DESTDIR)/lib > /dev/null; \
 	        if [ -f $(LIBVIEWER_SHARED) ]; then \
-	            ln -f -s $(LIBVIEWER_SHARED) $(LIBVIEWER_NAME).so; fi; \
+	            ln -f -s $(LIBVIEWER_SHARED) $(LIBVIEWER_SHARED_NAME); fi; \
 	        popd > /dev/null; \
-	    echo "Copied libopenvdb_viewer to $(INSTALL_DIR)/lib/"; \
+	    echo "Copied libopenvdb_viewer to $(DESTDIR)/lib/"; \
 	fi
 	@#
 	if [ -f $(PYTHON_MODULE) ]; \
 	then \
-	    installdir=$(INSTALL_DIR)/python/include/python$(PYTHON_VERSION); \
+	    installdir=$(DESTDIR)/python/include/python$(PYTHON_VERSION); \
 	    mkdir -p $${installdir}; \
 	    echo "Created $${installdir}"; \
 	    cp -f $(PYTHON_PUBLIC_INCLUDE_NAMES) $${installdir}/; \
 	    echo "Copied Python header files to $${installdir}"; \
-	    installdir=$(INSTALL_DIR)/python/lib/python$(PYTHON_VERSION); \
+	    installdir=$(DESTDIR)/python/lib/python$(PYTHON_VERSION); \
 	    mkdir -p $${installdir}; \
 	    echo "Created $${installdir}"; \
 	    cp -f $(PYTHON_MODULE) $${installdir}/; \
@@ -796,31 +869,31 @@ install: lib python vdb_print vdb_render vdb_view doc pydoc
 	    echo "Copied Python module to $${installdir}"; \
 	fi
 	@#
-	mkdir -p $(INSTALL_DIR)/bin
-	@echo "Created $(INSTALL_DIR)/bin/"
-	cp -f vdb_print $(INSTALL_DIR)/bin
-	@echo "Copied vdb_print to $(INSTALL_DIR)/bin/"
-	cp -f vdb_render $(INSTALL_DIR)/bin
-	@echo "Copied vdb_render to $(INSTALL_DIR)/bin/"
+	mkdir -p $(DESTDIR)/bin
+	@echo "Created $(DESTDIR)/bin/"
+	cp -f vdb_print $(DESTDIR)/bin
+	@echo "Copied vdb_print to $(DESTDIR)/bin/"
+	cp -f vdb_render $(DESTDIR)/bin
+	@echo "Copied vdb_render to $(DESTDIR)/bin/"
 	if [ -f vdb_view ]; \
 	then \
-	    cp -f vdb_view $(INSTALL_DIR)/bin; \
-	    echo "Copied vdb_view to $(INSTALL_DIR)/bin/"; \
+	    cp -f vdb_view $(DESTDIR)/bin; \
+	    echo "Copied vdb_view to $(DESTDIR)/bin/"; \
 	fi
 	@#
 	if [ -d doc/html ]; \
 	then \
-	    mkdir -p $(INSTALL_DIR)/share/doc/openvdb; \
-	    echo "Created $(INSTALL_DIR)/share/doc/openvdb/"; \
-	    cp -r -f doc/html $(INSTALL_DIR)/share/doc/openvdb; \
-	    echo "Copied documentation to $(INSTALL_DIR)/share/doc/openvdb/"; \
+	    mkdir -p $(DESTDIR)/share/doc/openvdb; \
+	    echo "Created $(DESTDIR)/share/doc/openvdb/"; \
+	    cp -r -f doc/html $(DESTDIR)/share/doc/openvdb; \
+	    echo "Copied documentation to $(DESTDIR)/share/doc/openvdb/"; \
 	fi
 
 # TODO: This accumulates all source file dependencies into a single file
 # containing a rule for each *.o file.  Consider generating a separate
 # dependency file for each *.o file instead.
-$(DEPEND): $(ALL_INCLUDE_FILES) $(ALL_SRC_FILES)
-	@echo "Generating dependencies because of $(call list_deps)"
+$(DEPEND): $(ALL_INCLUDE_FILES) $(ALL_SRC_FILES) openvdb_viewer
+	@echo "Generating dependencies because of $(list_deps)"
 	$(RM) $(DEPEND)
 	for f in $(SRC_NAMES) $(CMD_SRC_NAMES); \
 	    do $(CXX) $(CXXFLAGS) -O0 \
@@ -831,7 +904,7 @@ $(DEPEND): $(ALL_INCLUDE_FILES) $(ALL_SRC_FILES)
 	    for f in $(UNITTEST_SRC_NAMES); \
 	        do $(CXX) $(CXXFLAGS) -O0 \
 	            -MM $$f -MT `echo $$f | sed 's%\.[^.]*%.o%'` \
-	            -I $(CPPUNIT_INCL_DIR) >> $(DEPEND); \
+	            -isystem $(CPPUNIT_INCL_DIR) >> $(DEPEND); \
 	    done; \
 	fi
 
@@ -846,10 +919,10 @@ clean:
 	$(RM) $(UNITTEST_OBJ_NAMES)
 	$(RM) -r ./doc/html ./doc/latex
 
-ifneq ($(strip $(wildcard $(DEPEND))),)
+ifneq (,$(strip $(wildcard $(DEPEND))))
     include $(DEPEND)
 endif
 
-# Copyright (c) 2012-2013 DreamWorks Animation LLC
+# Copyright (c) 2012-2014 DreamWorks Animation LLC
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

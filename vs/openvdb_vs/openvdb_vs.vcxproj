@@ -96,6 +96,7 @@
     <ClCompile Include="..\..\openvdb\io\GridDescriptor.cc" />
     <ClCompile Include="..\..\openvdb\io\Queue.cc" />
     <ClCompile Include="..\..\openvdb\io\Stream.cc" />
+    <ClCompile Include="..\..\openvdb\io\TempFile.cc" />
     <ClCompile Include="..\..\openvdb\math\Hermite.cc" />
     <ClCompile Include="..\..\openvdb\math\Maps.cc" />
     <ClCompile Include="..\..\openvdb\math\Proximity.cc" />

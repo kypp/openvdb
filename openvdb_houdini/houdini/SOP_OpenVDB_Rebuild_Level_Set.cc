@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -83,9 +83,8 @@ newSopOperator(OP_OperatorTable* table)
     hutil::ParmList parms;
 
     parms.add(hutil::ParmFactory(PRM_STRING, "group", "Group")
-        .setChoiceList(&hutil::PrimGroupMenu)
-        .setHelpText(
-            "Specify a subset of the input VDB grids to be processed\n"
+        .setChoiceList(&hutil::PrimGroupMenuInput1)
+        .setHelpText("Specify a subset of the input VDB grids to be processed\n"
             "(scalar, floating-point grids only)"));
 
     parms.add(hutil::ParmFactory(PRM_FLT_J, "isovalue", "Isovalue")
@@ -206,11 +205,12 @@ SOP_OpenVDB_Rebuild_Level_Set::cookMySop(OP_Context& context)
         const GA_PrimitiveGroup* group = this->matchGroup(*gdp, groupStr.toStdString());
 
         // Get other UI parameters.
-        const float exBandWidth = evalFloat("exteriorBandWidth", 0, time);
-        const float inBandWidth = bool(evalInt("fillinterior", 0, time)) ?
-            std::numeric_limits<float>::max() : evalFloat("interiorBandWidth", 0, time);
+        const float exBandWidth = static_cast<float>(evalFloat("exteriorBandWidth", 0, time));
+        const float inBandWidth = bool(evalInt("fillinterior", 0, time))
+            ? std::numeric_limits<float>::max()
+            : static_cast<float>(evalFloat("interiorBandWidth", 0, time));
 
-        const float iso = evalFloat("isovalue", 0, time);
+        const float iso = static_cast<float>(evalFloat("isovalue", 0, time));
 
         hvdb::Interrupter boss("Rebuilding Level Set Grids");
 
@@ -255,6 +255,6 @@ SOP_OpenVDB_Rebuild_Level_Set::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -41,6 +41,7 @@
 #include <openvdb/tools/Filter.h>
 #include <OP/OP_AutoLockInputs.h>
 #include <UT/UT_Interrupt.h>
+#include <UT/UT_Version.h>
 #include <algorithm>
 #include <vector>
 
@@ -160,7 +161,7 @@ SOP_OpenVDB_Filter::opToString(Operation op)
         case NUM_OPERATIONS: break;
     }
     std::ostringstream ostr;
-    ostr << "unknown operation (" << op << ")";
+    ostr << "unknown operation (" << int(op) << ")";
     throw std::runtime_error(ostr.str().c_str());
 }
 
@@ -178,7 +179,7 @@ SOP_OpenVDB_Filter::opToMenuName(Operation op)
         case NUM_OPERATIONS: break;
     }
     std::ostringstream ostr;
-    ostr << "Unknown operation (" << op << ")";
+    ostr << "Unknown operation (" << int(op) << ")";
     throw std::runtime_error(ostr.str().c_str());
 }
 
@@ -217,7 +218,7 @@ SOP_OpenVDB_Filter::registerSop(OP_OperatorTable* table)
     // Input group
     parms.add(hutil::ParmFactory(PRM_STRING, "group", "Group")
         .setHelpText("Specify a subset of the input VDB grids to be processed.")
-              .setChoiceList(&hutil::PrimGroupMenu));
+              .setChoiceList(&hutil::PrimGroupMenuInput1));
 
     parms.add(hutil::ParmFactory(PRM_TOGGLE, "mask", "")
               .setDefault(PRMoneDefaults)
@@ -226,8 +227,7 @@ SOP_OpenVDB_Filter::registerSop(OP_OperatorTable* table)
 
     parms.add(hutil::ParmFactory(PRM_STRING, "maskname", "Alpha Mask")
               .setHelpText("Optional VDB used for alpha masking. Assumes values 0->1.")
-              .setSpareData(&SOP_Node::theSecondInput)
-              .setChoiceList(&hutil::PrimGroupMenu));
+              .setChoiceList(&hutil::PrimGroupMenuInput2));
 
     // Menu of operations
     {
@@ -299,15 +299,8 @@ SOP_OpenVDB_Filter::registerSop(OP_OperatorTable* table)
 bool
 SOP_OpenVDB_Filter::updateParmsFlags()
 {
-    bool changed = false;
+    bool changed = false, hasMask = (this->nInputs() == 2);
 
-    Operation op = Operation(-1);
-    UT_String s;
-    evalString(s, "operation", 0, 0);
-    try { op = stringToOp(s.toStdString()); }
-    catch (std::runtime_error&) {}
-
-    bool hasMask = (this->nInputs() == 2);
     changed |= enableParm("mask", hasMask);
     bool useMask = bool(evalInt("mask", 0, 0)) && hasMask;
     changed |= enableParm("invert", useMask);
@@ -316,16 +309,26 @@ SOP_OpenVDB_Filter::updateParmsFlags()
     changed |= enableParm("maskname", useMask);
 
 #ifndef SESI_OPENVDB
-    // Disable and hide unused parameters.
-    bool enable = (op == OP_MEAN || op == OP_GAUSS || op == OP_MEDIAN);
-    changed |= enableParm("iterations", enable);
-    changed |= enableParm("radius", enable);
-    changed |= setVisibleState("iterations", enable);
-    changed |= setVisibleState("radius", enable);
+    UT_String s;
+    evalString(s, "operation", 0, 0);
 
-    enable = (op == OP_OFFSET);
-    changed |= enableParm("offset", enable);
-    changed |= setVisibleState("offset", enable);
+    Operation op;
+    bool gotOp = false;
+    try { op = stringToOp(s.toStdString()); gotOp = true; }
+    catch (std::runtime_error&) {}
+
+    // Disable and hide unused parameters.
+    if (gotOp) {
+        bool enable = (op == OP_MEAN || op == OP_GAUSS || op == OP_MEDIAN);
+        changed |= enableParm("iterations", enable);
+        changed |= enableParm("radius", enable);
+        changed |= setVisibleState("iterations", enable);
+        changed |= setVisibleState("radius", enable);
+
+        enable = (op == OP_OFFSET);
+        changed |= enableParm("offset", enable);
+        changed |= setVisibleState("offset", enable);
+    }
 #endif
 
     return changed;
@@ -421,7 +424,7 @@ SOP_OpenVDB_Filter::evalFilterParms(OP_Context& context, GU_Detail&, FilterParmV
     parms.radius = evalInt("radius", 0, now);
     parms.iterations = evalInt("iterations", 0, now);
 #ifndef SESI_OPENVDB
-    parms.offset = evalFloat("offset", 0, now);
+    parms.offset = static_cast<float>(evalFloat("offset", 0, now));
     parms.verbose = bool(evalInt("verbose", 0, now));
 #endif
     openvdb::FloatGrid::ConstPtr maskGrid;
@@ -458,8 +461,8 @@ SOP_OpenVDB_Filter::evalFilterParms(OP_Context& context, GU_Detail&, FilterParmV
         }
     }
     parms.mask = maskGrid.get();
-    parms.minMask      = evalFloat("minMask", 0, now);
-    parms.maxMask      = evalFloat("maxMask", 0, now);
+    parms.minMask      = static_cast<float>(evalFloat("minMask", 0, now));
+    parms.maxMask      = static_cast<float>(evalFloat("maxMask", 0, now));
     parms.invertMask   = evalInt("invert", 0, now);
 
     parmVec.push_back(parms);
@@ -497,7 +500,12 @@ SOP_OpenVDB_Filter::cookMySop(OP_Context& context)
                 }
             }
         }
+#if (UT_VERSION_INT >= 0x0e0000b0) // 14.0.176 or later
+        lock.setNode(startNode);
+        if (lock.lock(context) >= UT_ERROR_ABORT) return error();
+#else
         if (lock.lock(*startNode, context) >= UT_ERROR_ABORT) return error();
+#endif
         if (startNode->duplicateSource(0, context, gdp) >= UT_ERROR_ABORT) return error();
 
         // Get the group of grids to process.
@@ -541,6 +549,6 @@ SOP_OpenVDB_Filter::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2013 DreamWorks Animation LLC
+// Copyright (c) 2012-2014 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
