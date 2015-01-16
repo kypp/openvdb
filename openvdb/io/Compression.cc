@@ -32,9 +32,9 @@
 
 #include <openvdb/Exceptions.h>
 #include <openvdb/util/logging.h>
-#ifdef _WIN32
-#define ZLIB_WINAPI 
-#endif
+// #ifdef _WIN32
+// #define ZLIB_WINAPI 
+// #endif
 
 #include <boost/algorithm/string/join.hpp>
 #include <boost/shared_array.hpp>
