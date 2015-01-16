@@ -45,10 +45,12 @@ local.properties
 
 [Dd]ebug/
 [Rr]elease/
+[Rr]elease_profiling/
 x64/
 build/
 [Bb]in/
 [Oo]bj/
+[Ll]ib/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
