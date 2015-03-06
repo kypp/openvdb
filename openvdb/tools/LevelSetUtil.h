@@ -181,6 +181,7 @@ private:
     ValueType mWeight;
 }; // class FogVolumeOp
 
+static float tak_jakos_w_gore = 0.1;
 template<typename ValueType, typename GradientAccessor>
 class SlicableVolumeOp
 {
@@ -207,9 +208,15 @@ public:
 			else {
 				math::Coord coord = iter.getCoord();
 				float multiplier = math::D1<math::CD_2ND>::inZ(acc, coord);
-				multiplier = 1.0f - abs(multiplier) / 2.0f;
-
-				value = std::min(ValueType(1.0), value * mWeight / multiplier);
+				//if (abs(abs(multiplier) - 1) < tak_jakos_w_gore)
+				//{
+				//	value = ValueType(1.0f);
+				//}
+				//else
+				//{
+					multiplier = 1.0f - abs(multiplier) / 2.0f;
+					value = std::min(ValueType(1.0), value * mWeight / multiplier);
+				//}
 				iter.setValueOn(value > zero);
 			}
 		}
