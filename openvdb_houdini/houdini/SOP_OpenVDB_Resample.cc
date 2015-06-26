@@ -59,7 +59,7 @@ public:
     enum { MODE_PARMS = 0, MODE_REF_GRID, MODE_VOXEL_SIZE, MODE_VOXEL_SCALE };
 
     SOP_OpenVDB_Resample(OP_Network*, const char* name, OP_Operator*);
-    virtual ~SOP_OpenVDB_Resample() {};
+    virtual ~SOP_OpenVDB_Resample() {}
 
     static OP_Node* factory(OP_Network*, const char* name, OP_Operator*);
 
@@ -324,7 +324,7 @@ SOP_OpenVDB_Resample::cookMySop(OP_Context& context)
         const fpreal time = context.getTime();
 
         // This does a shallow copy of VDB grids and deep copy of native Houdini primitives.
-        duplicateSource(0, context);
+        duplicateSourceStealable(0, context);
 
         const GU_Detail* refGdp = inputGeo(1, context);
 

@@ -126,7 +126,6 @@ private:
     int mWheelPos;
     bool mShiftIsDown, mCtrlIsDown, mShowInfo;
     bool mInterrupt;
-    int mWinWidth, mWinHeight;
 #if GLFW_VERSION_MAJOR >= 3
     GLFWwindow* mWindow;
 #endif
@@ -814,7 +813,7 @@ ViewerImpl::render()
 
         int width, height;
 #if GLFW_VERSION_MAJOR >= 3
-        glfwGetWindowSize(mWindow, &width, &height);
+        glfwGetFramebufferSize(mWindow, &width, &height);
 #else
         glfwGetWindowSize(&width, &height);
 #endif

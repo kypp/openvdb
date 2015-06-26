@@ -75,7 +75,6 @@ Camera::Camera()
     , mNeedsDisplay(true)
     , mMouseXPos(0.0)
     , mMouseYPos(0.0)
-    , mWheelPos(0)
 #if GLFW_VERSION_MAJOR >= 3
     , mWindow(NULL)
 #endif
@@ -129,7 +128,7 @@ Camera::aim()
     // Get the window size
     int width, height;
 #if GLFW_VERSION_MAJOR >= 3
-    glfwGetWindowSize(mWindow, &width, &height);
+    glfwGetFramebufferSize(mWindow, &width, &height);
 #else
     glfwGetWindowSize(&width, &height);
 #endif

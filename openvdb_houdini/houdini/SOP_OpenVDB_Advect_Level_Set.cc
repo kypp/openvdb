@@ -139,7 +139,7 @@ class SOP_OpenVDB_Advect_Level_Set: public hvdb::SOP_NodeVDB
 {
 public:
     SOP_OpenVDB_Advect_Level_Set(OP_Network*, const char* name, OP_Operator*);
-    virtual ~SOP_OpenVDB_Advect_Level_Set() {};
+    virtual ~SOP_OpenVDB_Advect_Level_Set() {}
 
     static OP_Node* factory(OP_Network*, const char* name, OP_Operator*);
 
@@ -305,7 +305,7 @@ SOP_OpenVDB_Advect_Level_Set::cookMySop(OP_Context& context)
     try {
         hutil::ScopedInputLock lock(*this, context);
         gdp->clearAndDestroy();
-        duplicateSource(0, context);
+        duplicateSourceStealable(0, context);
 
         // Evaluate UI parameters
         AdvectionParms parms;

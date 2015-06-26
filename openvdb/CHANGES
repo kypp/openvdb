@@ -1,7 +1,38 @@
 OpenVDB Version History
 =======================
 
-Version 3.0.0 - Release Candidate
+Version 3.1.0 - In development
+    - Added LeafNode::Buffer::data(), which allows direct access to
+      a leaf node's voxel value array.
+    - Made various optimizations and improvements to the LevelSetMorph tool.
+    - Added equality and inequality operators to Metadata and MetaMap.
+    - Added tools::CheckLevelSet, which performs various tests on symmetric,
+      narrow-band level sets to diagnose potential issues.
+    - Added tools::CheckFogVolume, which performs various tests on fog volumes
+      to diagnose potential issues.
+    - Added NaN and inf checks to tools::PointPartitioner.
+    - Fixed a build issue that could result in spurious "Blosc encoding
+      is not supported" errors unless OPENVDB_USE_BLOSC was #defined
+      when compiling client code.
+
+    API changes:
+    - Refactored the LevelSetAdvection, LevelSetFilter, LevelSetMeasure
+      and LevelSetTracker tools.
+    - Extended the API of tools::Diagnose and disabled copy construction.
+
+    Houdini:
+    - Added a Diagnostics SOP that performs validation tests on grids to
+      detect potential issues. The tests are currently automated, but manual
+      selections will be added soon.
+    - Redesigned the UI of the Visualize SOP and added toggles to draw with
+      or without color, to use the grid name as the attribute name for points
+      with values, and to attach grid index coordinates to points.
+    - Added SOP_NodeVDB::duplicateSourceStealable() to avoid the cost of a
+      deep-copy when using Houdini's unload flag and updated the following SOPs:
+      Advect_Level_Set, Convert, Fill, Filter, Filter_Level_Set, Fracture, Noise,
+      Prune, Resample, Transform.
+
+Version 3.0.0 - January 14, 2014
     - The io::File class now supports delayed loading of .vdb files,
       meaning that memory is not allocated for voxel values until the values
       are actually accessed.  (This feature is enabled by default.)
@@ -33,6 +64,10 @@ Version 3.0.0 - Release Candidate
       user-defined tests.
     - Added optional alpha masks to tools::LevelSetMorphing.
     - Fixed an intermittent crash in tools::LevelSetMorphing.
+    - Added tools::topologyToLevelSet(), which generates a level set
+      from the implicit boundary between active and inactive voxels
+      in an arbitrary input grid.
+      [DWA internal]
     - Improved the performance of point scattering (by orders of magnitude)
       and added a DenseUniformPointScatter class as well as support for
       fractional numbers of particles per voxel.

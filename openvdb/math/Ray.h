@@ -260,7 +260,7 @@ public:
     inline bool intersects(const BBoxT& bbox, RealT& t0, RealT& t1) const
     {
         mTimeSpan.get(t0, t1);
-        for (size_t i = 0; i < 3; ++i) {
+        for (int i = 0; i < 3; ++i) {
             RealT a = (bbox.min()[i] - mEye[i]) * mInvDir[i];
             RealT b = (bbox.max()[i] - mEye[i]) * mInvDir[i];
             if (a > b) std::swap(a, b);
