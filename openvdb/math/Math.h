@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -303,6 +303,7 @@ inline double Abs(double x) { return fabs(x); }
 inline long double Abs(long double x) { return fabsl(x); }
 inline uint32_t Abs(uint32_t i) { return i; }
 inline uint64_t Abs(uint64_t i) { return i; }
+inline bool Abs(bool b) { return b; }
 // On OSX size_t and uint64_t are different types
 #if defined(__APPLE__) || defined(MACOSX)
 inline size_t Abs(size_t i) { return i; }
@@ -455,8 +456,8 @@ doubleToInt64(const double aDoubleValue)
 
 // aUnitsInLastPlace is the allowed difference between the least significant digits
 // of the numbers' floating point representation
-// Please read refernce paper before trying to use isUlpsEqual
-// http://www.cygnus-software.com/papers/comparingFloats/comparingFloats.htm
+// Please read the reference paper before trying to use isUlpsEqual
+// http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
 inline bool
 isUlpsEqual(const double aLeft, const double aRight, const int64_t aUnitsInLastPlace)
 {
@@ -854,7 +855,7 @@ struct promote {
 
 /// @brief Return the index [0,1,2] of the smallest value in a 3D vector.
 /// @note This methods assumes operator[] exists and avoids branching.
-/// @details If two components of the input vector are equal and smaller then the
+/// @details If two components of the input vector are equal and smaller than the
 /// third component, the largest index of the two is always returned.
 /// If all three vector components are equal the largest index, i.e. 2, is
 /// returned. In other words the return value corresponds to the largest index
@@ -875,11 +876,11 @@ MinIndex(const Vec3T& v)
 
 /// @brief Return the index [0,1,2] of the largest value in a 3D vector.
 /// @note This methods assumes operator[] exists and avoids branching.
-/// @details If two components of the input vector are equal and larger then the
+/// @details If two components of the input vector are equal and larger than the
 /// third component, the largest index of the two is always returned.
 /// If all three vector components are equal the largest index, i.e. 2, is
 /// returned. In other words the return value corresponds to the largest index
-/// of the of the largest vector components.
+/// of the largest vector components.
 template<typename Vec3T>
 size_t
 MaxIndex(const Vec3T& v)
@@ -899,6 +900,6 @@ MaxIndex(const Vec3T& v)
 
 #endif // OPENVDB_MATH_MATH_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

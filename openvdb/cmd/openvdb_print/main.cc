@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -53,6 +53,7 @@ usage(int exitStatus = EXIT_FAILURE)
     std::cerr <<
 "Usage: " << gProgName << " in.vdb [in.vdb ...] [options]\n" <<
 "Which: prints information about OpenVDB grids\n" <<
+"Build: library version " << openvdb::getLibraryVersionString() << "\n" <<       
 "Options:\n" <<
 "    -l, -stats     long printout, including grid statistics\n" <<
 "    -m, -metadata  print per-file and per-grid metadata\n";
@@ -332,6 +333,6 @@ main(int argc, char *argv[])
     return exitStatus;
 }
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -268,10 +268,15 @@ doLevelSetRebuild(const GridType& grid, typename GridType::ValueType iso,
         primCpy.runParallel();
     }
 
-    MeshToVolume<GridType, InterruptT> vol(transform, OUTPUT_RAW_DATA, interrupter);
-    vol.convertToLevelSet(points, primitives, exBandWidth, inBandWidth);
+    QuadAndTriangleDataAdapter<Vec3s, Vec4I> mesh(points, primitives);
 
-    return vol.distGridPtr();
+    if (interrupter) {
+        return meshToVolume<GridType>(*interrupter, mesh, *transform, exBandWidth, inBandWidth,
+            DISABLE_RENORMALIZATION, NULL);
+    }
+
+    return meshToVolume<GridType>(mesh, *transform, exBandWidth, inBandWidth,
+        DISABLE_RENORMALIZATION, NULL);
 }
 
 
@@ -343,6 +348,6 @@ levelSetRebuild(const GridType& grid, float iso, float halfVal, const math::Tran
 
 #endif // OPENVDB_TOOLS_LEVELSETREBUILD_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

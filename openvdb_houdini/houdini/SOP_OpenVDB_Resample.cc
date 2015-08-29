@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -324,7 +324,7 @@ SOP_OpenVDB_Resample::cookMySop(OP_Context& context)
         const fpreal time = context.getTime();
 
         // This does a shallow copy of VDB grids and deep copy of native Houdini primitives.
-        duplicateSourceStealable(0, context);
+        duplicateSource(0, context);
 
         const GU_Detail* refGdp = inputGeo(1, context);
 
@@ -539,6 +539,6 @@ SOP_OpenVDB_Resample::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

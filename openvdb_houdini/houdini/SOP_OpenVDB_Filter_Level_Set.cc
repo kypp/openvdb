@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -700,7 +700,9 @@ SOP_OpenVDB_Filter_Level_Set::cookMySop(OP_Context& context)
 #endif
 
         // This does a shallow copy of VDB-grids and deep copy of native Houdini primitives.
-        if (startNode->duplicateSourceStealable(0, context) >= UT_ERROR_ABORT) return error();
+        if (startNode->duplicateSourceStealable(0, context, &gdp, myGdpHandle, /*clean = */ true) >= UT_ERROR_ABORT) {
+            return error();
+        }
 
         BossT boss("Processing level sets");
 
@@ -827,7 +829,8 @@ SOP_OpenVDB_Filter_Level_Set::applyFilters(
     GU_Detail&,
     bool verbose)
 {
-    typename GridT::Ptr grid = openvdb::deepCopyTypedGrid<GridT>(vdbPrim->getGrid());
+    vdbPrim->makeGridUnique();
+    typename GridT::Ptr grid = openvdb::gridPtrCast<GridT>(vdbPrim->getGridPtr());
 
     if (!grid) return false;
 
@@ -858,10 +861,6 @@ SOP_OpenVDB_Filter_Level_Set::applyFilters(
         if (boss.wasInterrupted()) break;
     }
 
-    // Replace the original VDB primitive with a new primitive that contains
-    // the output grid and has the same attributes and group membership.
-    hvdb::replaceVdbPrimitive(*gdp, grid, *vdbPrim, true, vdbPrim->getGridName());
-
     return true;
 }
 
@@ -872,7 +871,6 @@ SOP_OpenVDB_Filter_Level_Set::filterGrid(OP_Context& context, FilterT& filter,
     const FilterParms& parms, BossT& boss, bool verbose)
 {
     // Alpha-masking
-    typedef typename FilterT::GridType GridT;
     typedef typename FilterT::MaskType MaskT;
     typename MaskT::ConstPtr maskGrid;
 
@@ -920,7 +918,6 @@ SOP_OpenVDB_Filter_Level_Set::filterGrid(OP_Context& context, FilterT& filter,
       case ACCURACY_HJ_WENO:       filter.setSpatialScheme(openvdb::math::HJWENO5_BIAS); break;
     }
 
-    typedef typename FilterT::ValueType ValueT;
     const float ds = (parms.mWorldUnits ? 1.f : mVoxelSize) * parms.mVoxelOffset;
 
     switch (parms.mFilterType) {
@@ -978,7 +975,6 @@ inline void
 SOP_OpenVDB_Filter_Level_Set::offset(const FilterParms&, FilterT& filter,
     const float offset, bool verbose, const typename FilterT::MaskType* mask)
 {
-
     if (verbose) {
         std::cout << "Morphological " << (offset>0 ? "erosion" : "dilation")
             << " by the offset " << offset << std::endl;
@@ -1110,6 +1106,6 @@ SOP_OpenVDB_Filter_Level_Set::track(const FilterParms& parms, FilterT& filter,
 ////////////////////////////////////////
 
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

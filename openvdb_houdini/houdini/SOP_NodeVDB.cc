@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -166,13 +166,13 @@ SOP_NodeVDB::getNodeSpecificInfoText(OP_Context &context, OP_NodeInfoParms &parm
 }
 
 
-////////////////////////////////////////
+OP_ERROR
+SOP_NodeVDB::duplicateSourceStealable(const unsigned index,
+    OP_Context& context, GU_Detail **pgdp, GU_DetailHandle& gdh, bool clean)
+{
 
 #if (UT_VERSION_INT >= 0x0d000000) // 13.0 or later
-OP_ERROR
-SOP_NodeVDB::duplicateSourceStealable(const unsigned index, OP_Context& context,
-                                      GU_Detail **pgdp, GU_DetailHandle& gdh, bool clean)
-{
+
     // traverse upstream nodes, if unload is not possible, duplicate the source
     if (!isSourceStealable(index, context)) {
         duplicateSource(index, context, *pgdp, clean);
@@ -213,12 +213,22 @@ SOP_NodeVDB::duplicateSourceStealable(const unsigned index, OP_Context& context,
     gdh = inputgdh;
     *pgdp = gdh.writeLock();
 
+#else // earlier than 13.0
+
+    duplicateSource(index, context, *pgdp, clean);
+    // inputs are unlocked to match SOP state in Houdini 13.0 or later functionality
+    unlockInput(index);
+
+#endif
+
     return error();
 }
+
 
 bool
 SOP_NodeVDB::isSourceStealable(const unsigned index, OP_Context& context) const
 {
+#if (UT_VERSION_INT >= 0x0d000000) // 13.0 or later
     struct Local {
         static inline OP_Node* nextStealableInput(const unsigned index, const fpreal now, const OP_Node* node)
         {
@@ -247,22 +257,23 @@ SOP_NodeVDB::isSourceStealable(const unsigned index, OP_Context& context) const
         if(node->getUnload() == true) return true;
         else  return false;
     }
-
+#endif
     return false;
 }
 
+
 OP_ERROR
-SOP_NodeVDB::duplicateSourceStealable(const unsigned index, OP_Context& context, bool clean) {
-    return this->duplicateSourceStealable(index, context, &gdp, myGdpHandle, clean);
-}
+SOP_NodeVDB::duplicateSourceStealable(const unsigned index, OP_Context& context) {
+#if (UT_VERSION_INT >= 0x0d000000) // 13.0 or later
+    return this->duplicateSourceStealable(index, context, &gdp, myGdpHandle, true);
 #else
-OP_ERROR
-SOP_NodeVDB::duplicateSourceStealable(const unsigned index, OP_Context& context, bool clean) {
-    duplicateSource(index, context, gdp, clean);
+    duplicateSource(index, context, gdp, true);
+    // inputs are unlocked to match SOP state in Houdini 13.0 or later functionality
     unlockInput(index);
     return error();
-}
 #endif
+}
+
 
 ////////////////////////////////////////
 
@@ -457,6 +468,6 @@ OpenVDBOpFactory::OpenVDBOpFactory(
 
 } // namespace openvdb_houdini
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

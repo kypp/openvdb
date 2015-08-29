@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -58,7 +58,7 @@ public:
     /// Constructor with one argument, e.g.   Vec4f v(0);
     explicit Vec4(T val) { this->mm[0] = this->mm[1] = this->mm[2] = this->mm[3] = val; }
 
-    /// Constructor with three arguments, e.g.   Vec4f v(1,2,3);
+    /// Constructor with four arguments, e.g.   Vec4f v(1,2,3,4);
     Vec4(T x, T y, T z, T w)
     {
         this->mm[0] = x;
@@ -551,6 +551,6 @@ typedef Vec4<double>    Vec4d;
 
 #endif // OPENVDB_MATH_VEC4_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

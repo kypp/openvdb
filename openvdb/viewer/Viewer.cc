@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -1087,13 +1087,13 @@ ViewerImpl::keyCallback(int key, int action)
 
     if (keyPress) {
         switch (key) {
-        case '1':
+        case '1': case GLFW_KEY_KP_1:
             toggleRenderModule(0);
             break;
-        case '2':
+        case '2': case GLFW_KEY_KP_2:
             toggleRenderModule(1);
             break;
-        case '3':
+        case '3': case GLFW_KEY_KP_3:
             toggleRenderModule(2);
             break;
         case 'c': case 'C':
@@ -1226,6 +1226,6 @@ ViewerImpl::toggleInfoText()
 
 } // namespace openvdb_viewer
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
