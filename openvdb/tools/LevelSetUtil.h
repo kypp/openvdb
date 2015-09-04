@@ -44,6 +44,7 @@
 
 #include <openvdb/Types.h>
 #include <openvdb/Grid.h>
+#include <openvdb/tools/LevelSetFracture.h>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
@@ -1305,7 +1306,7 @@ sdfToSlicableVolume(GridType& grid, GradientAccessor & accessor, typename GridTy
 	{ // Transform all voxels (parallel, over leaf nodes)
 		tree::LeafManager<TreeType> leafs(tree);
 
-		MinMaxVoxel<TreeType> minmax(leafs);
+		internal::MinMaxVoxel<TreeType> minmax(leafs);
 		minmax.runParallel();
 
 		// Clamp to the interior band width.
@@ -1313,7 +1314,7 @@ sdfToSlicableVolume(GridType& grid, GradientAccessor & accessor, typename GridTy
 			cutoffDistance = minmax.minVoxel();
 		}
 
-		leafs.foreach(internal::SlicableVolumeOp<ValueType, GradientAccessor>(cutoffDistance, accessor));
+		leafs.foreach(level_set_util_internal::SlicableVolumeOp<ValueType, GradientAccessor>(cutoffDistance, accessor));
 	}
 
 	// Transform all tile values (serial, but the iteration
