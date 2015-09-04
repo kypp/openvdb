@@ -78,7 +78,7 @@ namespace tools {
 /// as all neighbor voxels connected along either one, two or all
 /// three of the primary axes)
 /// </dl>
-enum NearestNeighbors { NN_FACE = 6, NN_FACE_EDGE = 18, NN_FACE_EDGE_VERTEX = 26 };
+enum NearestNeighbors { NN_VERTICAL = 2, NN_FACE = 6, NN_FACE_EDGE = 18, NN_FACE_EDGE_VERTEX = 26 };
 
 
 /// @brief Topologically dilate all leaf-level active voxels in a tree
@@ -322,6 +322,7 @@ protected:
             : mTask(0), mSavedMasks(masks) , mManager(manager) {}
         void runParallel(NearestNeighbors nn);
         void operator()(const RangeT& r) const {mTask(const_cast<ErodeVoxelsOp*>(this), r);}
+		void erode2(const RangeT&) const;
         void erode6( const RangeT&) const;
         void erode18(const RangeT&) const;
         void erode26(const RangeT&) const;
@@ -633,6 +634,9 @@ Morphology<TreeType>::ErodeVoxelsOp::runParallel(NearestNeighbors nn)
     case NN_FACE_EDGE_VERTEX:
         mTask = boost::bind(&ErodeVoxelsOp::erode26, _1, _2);
         break;
+	case NN_VERTICAL:
+		mTask = boost::bind(&ErodeVoxelsOp::erode2, _1, _2);
+		break;
     default:
         mTask = boost::bind(&ErodeVoxelsOp::erode6, _1, _2);
     }
@@ -719,6 +723,34 @@ Morphology<TreeType>::ErodeVoxelsOp::erode6(const RangeT& range) const
         }//loop over x
         cache.clear();
     }//loop over leafs
+}
+
+template <typename TreeType>
+inline void
+Morphology<TreeType>::ErodeVoxelsOp::erode2(const RangeT& range) const
+{
+	LeafCache cache(7, mManager.tree());
+	for (size_t leafIdx = range.begin(); leafIdx < range.end(); ++leafIdx) {
+		cache[0] = &mManager.leaf(leafIdx);
+		if (cache[0]->isEmpty()) continue;
+		cache.setOrigin(cache[0]->origin());
+		MaskType& newMask = mSavedMasks[leafIdx];//original bit-mask of current leaf node
+		for (int x = 0; x < LEAF_DIM; ++x) {
+			for (int y = 0, n = (x << LEAF_LOG2DIM); y < LEAF_DIM; ++y, ++n) {
+				// Extract the portion of the original mask that corresponds to a row in z.
+				if (Word& w = newMask.template getWord<Word>(n)) {
+
+					// erode in two z directions (this is first since it uses the original w)
+					w = Word(w &
+						(Word(w << 1 | (cache.template gather<0, 0, -1>(1, n) >> (LEAF_DIM - 1))) &
+							Word(w >> 1 | (cache.template gather<0, 0, 1>(2, n) << (LEAF_DIM - 1)))));
+
+					//w = Word(w & cache.gatherFacesXY(x, y, 0, n, 3));
+				}
+			}// loop over y
+		}//loop over x
+		cache.clear();
+	}//loop over leafs
 }
 
 
