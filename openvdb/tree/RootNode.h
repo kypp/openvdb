@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -39,6 +39,7 @@
 #include <set>
 #include <sstream>
 #include <deque>
+#include <boost/detail/sp_typeinfo.hpp>
 #include <boost/type_traits/remove_const.hpp>
 #include <boost/type_traits/remove_pointer.hpp>
 #include <boost/type_traits/is_pointer.hpp>
@@ -449,9 +450,9 @@ public:
     ///
     /// @note Instead of setting @a updateChildNodes to true, consider
     /// using tools::changeBackground or
-    /// tools::changeLevelSetBackground which are multi-threaded!  
+    /// tools::changeLevelSetBackground which are multi-threaded!
     void setBackground(const ValueType& value, bool updateChildNodes);
-    
+
     /// Return this node's background value.
     const ValueType& background() const { return mBackground; }
 
@@ -658,6 +659,8 @@ public:
     /// @brief Reduce the memory footprint of this tree by replacing with tiles
     /// any nodes whose values are all the same (optionally to within a tolerance)
     /// and have the same active state.
+    ///
+    /// @note Consider instead using tools::prune which is multi-threaded!
     void prune(const ValueType& tolerance = zeroVal<ValueType>());
 
     /// @brief Add the given leaf node to this tree, creating a new branch if necessary.
@@ -683,7 +686,7 @@ public:
     /// @brief Add a tile containing voxel (x, y, z) at the root level,
     /// deleting the existing branch if necessary.
     void addTile(const Coord& xyz, const ValueType& value, bool state);
-    
+
     /// @brief Add a tile containing voxel (x, y, z) at the specified tree level,
     /// creating a new branch if necessary.  Delete any existing lower-level nodes
     /// that contain (x, y, z).
@@ -774,7 +777,37 @@ public:
     template<typename ArrayT> void getNodes(ArrayT& array);
     template<typename ArrayT> void getNodes(ArrayT& array) const;
     //@}
-    
+
+    //@{
+    /// @brief Steals all nodes of a certain type from the tree and
+    /// adds them to a container with the following API:
+    /// @code
+    /// struct ArrayT {
+    ///    typedef value_type;// defines the type of nodes to be added to the array
+    ///    void push_back(value_type nodePtr);// method that add nodes to the array
+    /// };
+    /// @endcode
+    /// @details An example of a wrapper around a c-style array is:
+    /// @code
+    /// struct MyArray {
+    ///    typedef LeafType* value_type;
+    ///    value_type* ptr;
+    ///    MyArray(value_type* array) : ptr(array) {}
+    ///    void push_back(value_type leaf) { *ptr++ = leaf; }
+    ///};
+    /// @endcode
+    /// @details An example that constructs a list of pointer to all leaf nodes is:
+    /// @code
+    /// std::vector<const LeafNodeType*> array;//most std contains have the required API
+    /// array.reserve(tree.leafCount());//this is a fast preallocation.
+    /// tree.stealNodes(array);
+    /// @endcode
+    template<typename ArrayT>
+    void stealNodes(ArrayT& array, const ValueType& value, bool state);
+    template<typename ArrayT>
+    void stealNodes(ArrayT& array) { this->stealNodes(array, mBackground, false); }
+    //@}
+
     /// Densify active tiles, i.e., replace them with leaf-level active voxels.
     void voxelizeActiveTiles();
 
@@ -1065,8 +1098,8 @@ struct RootNodeCopyHelper
         self.enforceCompatibleValueTypes(other);
         // One of the above two tests should throw, so we should never get here:
         std::ostringstream ostr;
-        ostr << "cannot convert a " << typeid(OtherRootT).name()
-            << " to a " << typeid(RootT).name();
+        ostr << "cannot convert a " << BOOST_SP_TYPEID(OtherRootT).name()
+            << " to a " << BOOST_SP_TYPEID(RootT).name();
         OPENVDB_THROW(TypeError, ostr.str());
     }
 };
@@ -2765,6 +2798,35 @@ RootNode<ChildT>::getNodes(ArrayT& array) const
     }
 }
 
+////////////////////////////////////////
+
+template<typename ChildT>
+template<typename ArrayT>
+inline void
+RootNode<ChildT>::stealNodes(ArrayT& array, const ValueType& value, bool state)
+{
+    typedef typename ArrayT::value_type NodePtr;
+    BOOST_STATIC_ASSERT(boost::is_pointer<NodePtr>::value);
+    typedef typename boost::remove_pointer<NodePtr>::type NodeType;
+    typedef typename boost::remove_const<NodeType>::type NonConstNodeType;
+    typedef typename boost::mpl::contains<NodeChainType, NonConstNodeType>::type result;
+    BOOST_STATIC_ASSERT(result::value);
+    typedef typename boost::mpl::if_<boost::is_const<NodeType>,
+                                     const ChildT, ChildT>::type ArrayChildT;
+
+    for (MapIter iter=mTable.begin(); iter!=mTable.end(); ++iter) {
+        if (ChildT* child = iter->second.child) {
+            OPENVDB_NO_UNREACHABLE_CODE_WARNING_BEGIN
+            if (boost::is_same<NodePtr, ArrayChildT*>::value) {
+                array.push_back(reinterpret_cast<NodePtr>(&stealChild(iter, Tile(value, state))));
+            } else {
+                child->stealNodes(array, value, state);//descent
+            }
+            OPENVDB_NO_UNREACHABLE_CODE_WARNING_END
+        }
+    }
+}
+
 
 ////////////////////////////////////////
 
@@ -3083,8 +3145,8 @@ struct RootNodeCombineHelper
         self.enforceCompatibleValueTypes(other1);
         // One of the above two tests should throw, so we should never get here:
         std::ostringstream ostr;
-        ostr << "cannot combine a " << typeid(OtherRootT).name()
-            << " into a " << typeid(RootT).name();
+        ostr << "cannot combine a " << BOOST_SP_TYPEID(OtherRootT).name()
+            << " into a " << BOOST_SP_TYPEID(RootT).name();
         OPENVDB_THROW(TypeError, ostr.str());
     }
 };
@@ -3332,6 +3394,6 @@ RootNode<ChildT>::doVisit2(RootNodeT& self, OtherRootNodeT& other, VisitorOp& op
 
 #endif // OPENVDB_TREE_ROOTNODE_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

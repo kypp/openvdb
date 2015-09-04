@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -506,7 +506,11 @@ SOP_OpenVDB_Filter::cookMySop(OP_Context& context)
 #else
         if (lock.lock(*startNode, context) >= UT_ERROR_ABORT) return error();
 #endif
-        if (startNode->duplicateSourceStealable(0, context) >= UT_ERROR_ABORT) return error();
+
+        // This does a shallow copy of VDB-grids and deep copy of native Houdini primitives.
+        if (startNode->duplicateSourceStealable(0, context, &gdp, myGdpHandle, /*clean = */ true) >= UT_ERROR_ABORT) {
+            return error();
+        }
 
         // Get the group of grids to process.
         UT_String groupStr;
@@ -549,6 +553,6 @@ SOP_OpenVDB_Filter::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

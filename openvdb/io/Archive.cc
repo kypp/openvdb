@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -39,6 +39,7 @@
 
 // Boost.Interprocess uses a header-only portion of Boost.DateTime
 #define BOOST_DATE_TIME_NO_LIB
+#include <boost/detail/sp_typeinfo.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/iostreams/device/array.hpp>
@@ -46,6 +47,7 @@
 #include <boost/system/error_code.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <boost/version.hpp> // for BOOST_VERSION
 
 #include <tbb/atomic.h>
 
@@ -68,6 +70,10 @@ namespace boost { namespace interprocess { namespace detail {} namespace ipcdeta
 #include <iostream>
 #include <map>
 #include <sstream>
+
+#ifndef DWA_BOOST_VERSION
+#define DWA_BOOST_VERSION (10 * BOOST_VERSION)
+#endif
 
 
 namespace openvdb {
@@ -315,7 +321,7 @@ template<typename T>
 inline bool
 writeAsType(std::ostream& os, const boost::any& val)
 {
-    if (val.type() == typeid(T)) {
+    if (val.type() == BOOST_SP_TYPEID(T)) {
         os << boost::any_cast<T>(val);
         return true;
     }
@@ -503,7 +509,11 @@ MappedFile::clearNotifier()
 std::string
 getErrorString(int errorNum)
 {
+#if DWA_BOOST_VERSION >= 1043000
     return boost::system::error_code(errorNum, boost::system::generic_category()).message();
+#else
+    return boost::system::error_code(errorNum, boost::system::get_generic_category()).message();
+#endif
 }
 
 
@@ -1362,6 +1372,6 @@ Archive::writeGridInstance(GridDescriptor& gd, GridBase::ConstPtr grid,
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

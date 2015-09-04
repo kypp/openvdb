@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -222,7 +222,7 @@ SOP_OpenVDB_Transform::cookMySop(OP_Context& context)
             {
                 // If (and only if) the grid is vector-valued, deep copy it,
                 // then apply the transform to each voxel's value.
-                GEOvdbProcessTypedGridVec3(*vdb, xformOp);
+                GEOvdbProcessTypedGridVec3(*vdb, xformOp, /*makeUnique=*/true);
             }
         }
     } catch (std::exception& e) {
@@ -231,6 +231,6 @@ SOP_OpenVDB_Transform::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2014 DreamWorks Animation LLC
+// Copyright (c) 2012-2015 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
