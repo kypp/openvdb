@@ -11,4 +11,4 @@ include_directories (${TBB_INCLUDE_DIRS})
 include_directories (.)
 add_subdirectory (openvdb)
 
-install (DIRECTORY openvdb/ DESTINATION include FILES_MATCHING PATTERN "*.h")
+install (DIRECTORY openvdb DESTINATION include FILES_MATCHING PATTERN "*.h")
