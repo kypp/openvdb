@@ -220,7 +220,7 @@ HOUDINI_SOP_SCRIPT_NAMES := \
     houdini/DW_OpenVDBRasterizePoints.cmd \
 #
 HOUDINI_SOP_SRC_NAMES := \
-    houdini/SOP_OpenVDB_Advect_Level_Set.cc \
+    houdini/SOP_OpenVDB_Advect.cc \
     houdini/SOP_OpenVDB_Advect_Points.cc \
     houdini/SOP_OpenVDB_Analysis.cc \
     houdini/SOP_OpenVDB_Clip.cc \
@@ -244,6 +244,7 @@ HOUDINI_SOP_SRC_NAMES := \
     houdini/SOP_OpenVDB_Ray.cc \
     houdini/SOP_OpenVDB_Read.cc \
     houdini/SOP_OpenVDB_Rebuild_Level_Set.cc \
+    houdini/SOP_OpenVDB_Remap.cc \
     houdini/SOP_OpenVDB_Remove_Divergence.cc \
     houdini/SOP_OpenVDB_Resample.cc \
     houdini/SOP_OpenVDB_Sample_Points.cc \
