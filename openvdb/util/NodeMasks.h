@@ -57,10 +57,10 @@ CountOn(Byte v)
     static
 #endif
     const Byte numBits[256] = {
-#   define B2(n)  n,     n+1,     n+1,     n+2
-#   define B4(n)  B2(n), B2(n+1), B2(n+1), B2(n+2)
-#   define B6(n)  B4(n), B4(n+1), B4(n+1), B4(n+2)
-           B6(0), B6(1), B6(1),   B6(2)
+#   define B2_(n)  n,      n+1,      n+1,      n+2
+#   define B4_(n)  B2_(n), B2_(n+1), B2_(n+1), B2_(n+2)
+#   define B6_(n)  B4_(n), B4_(n+1), B4_(n+1), B4_(n+2)
+           B6_(0), B6_(1), B6_(1),   B6_(2)
     };
     return numBits[v];
 

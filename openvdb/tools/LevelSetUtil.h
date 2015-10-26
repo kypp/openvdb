@@ -355,7 +355,7 @@ public:
 				//}
 				//else
 				//{
-					multiplier = 1.0f - abs(multiplier) / 2.0f;
+					multiplier = 1.0f - std::abs(multiplier) / 2.0f;
 					value = std::min(ValueType(1.0), value * mWeight / multiplier);
 				//}
 				iter.setValueOn(value > zero);
