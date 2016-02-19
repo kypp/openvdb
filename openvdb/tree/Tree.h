@@ -208,6 +208,7 @@ public:
 
     typedef _RootNodeType                        RootNodeType;
     typedef typename RootNodeType::ValueType     ValueType;
+    typedef typename RootNodeType::BuildType     BuildType;
     typedef typename RootNodeType::LeafNodeType  LeafNodeType;
 
     static const Index DEPTH = RootNodeType::LEVEL + 1;
@@ -283,7 +284,7 @@ public:
     /// Empty tree constructor
     Tree(const ValueType& background): mRoot(background) {}
 
-    virtual ~Tree() { releaseAllAccessors(); }
+    virtual ~Tree() { this->clear(); releaseAllAccessors(); }
 
     /// Return a pointer to a deep copy of this tree
     virtual TreeBase::Ptr copy() const { return TreeBase::Ptr(new Tree(*this)); }
@@ -592,10 +593,11 @@ public:
     /// tree.stealNodes(array);
     /// @endcode
     template<typename ArrayT>
-    void stealNodes(ArrayT& array) { mRoot.stealNodes(array); }
+    void stealNodes(ArrayT& array) { this->clearAllAccessors(); mRoot.stealNodes(array); }
     template<typename ArrayT>
     void stealNodes(ArrayT& array, const ValueType& value, bool state)
     {
+        this->clearAllAccessors();
         mRoot.stealNodes(array, value, state);
     }
 
@@ -607,7 +609,7 @@ public:
     bool empty() const { return mRoot.empty(); }
 
     /// Remove all tiles from this tree and all nodes other than the root node.
-    void clear() { this->clearAllAccessors(); mRoot.clear(); }
+    void clear();
 
     /// Clear all registered accessors.
     void clearAllAccessors();
@@ -1190,6 +1192,17 @@ protected:
     /// that this tree is about to be deleted.
     void releaseAllAccessors();
 
+    // TBB body object used to deallocates leafnodes in parallel.
+    struct DeallocateLeafNodes {
+        DeallocateLeafNodes(std::vector<LeafNodeType*>& nodes)
+            : mNodes(nodes.empty() ? NULL : &nodes.front()) { }
+        void operator()(const tbb::blocked_range<size_t>& range) const {
+            for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
+                delete mNodes[n]; mNodes[n] = NULL;
+            }
+        }
+        LeafNodeType ** const mNodes;
+    };
 
     //
     // Data members
@@ -1432,6 +1445,21 @@ inline void
 Tree<RootNodeType>::writeBuffers(std::ostream &os, bool saveFloatAsHalf) const
 {
     mRoot.writeBuffers(os, saveFloatAsHalf);
+}
+
+
+template<typename RootNodeType>
+inline void
+Tree<RootNodeType>::clear()
+{
+    std::vector<LeafNodeType*> leafnodes;
+    this->stealNodes(leafnodes);
+    mRoot.clear();
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, leafnodes.size()),
+        DeallocateLeafNodes(leafnodes));
+
+    this->clearAllAccessors();
 }
 
 
@@ -2035,7 +2063,7 @@ Tree<RootNodeType>::treeType()
         std::vector<Index> dims;
         Tree::getNodeLog2Dims(dims);
         std::ostringstream ostr;
-        ostr << "Tree_" << typeNameAsString<ValueType>();
+        ostr << "Tree_" << typeNameAsString<BuildType>();
         for (size_t i = 1, N = dims.size(); i < N; ++i) { // start from 1 to skip the RootNode
             ostr << "_" << dims[i];
         }

@@ -3,6 +3,138 @@
 @page changes Release Notes
 
 
+@htmlonly <a name="v3_2_0_changes"></a>@endhtmlonly
+@par
+<B>Version 3.2.0</B> - <I>In development</I>
+
+@par
+Highlights:
+- Improved the performance of level-set advection by up to five times.
+- Implemented efficient multithreaded segmentation algorithms.
+- Added faster and more memory-efficient tools for point to
+  level set conversion.
+- Added a memory-efficient, binary-mask grid type, dubbed
+  &ldquo;@link tree/LeafNodeMask.h MaskGrid@endlink&rdquo;, that uses
+  a single bit per voxel to represent the voxel&rsquo;s active state
+  (or, equivalently, its value).
+
+@par
+New features:
+- Added @link ParticleAtlas.h tools::ParticleAtlas@endlink an acceleration
+  structure for fast range and nearest-neighbor searches on particles, points
+  with radius.
+- Added @vdblink::tools::segmentActiveVoxels() segmentActiveVoxels@endlink,
+  which operates on grids of arbitrary type and separates connected components
+  of a grid&rsquo;s active voxels into distinct grids or trees.
+- Added @vdblink::tools::segmentSDF() segmentSDF@endlink, which separates
+  disjoint signed-distance-field surfaces into distinct grids or trees.
+- Added @vdblink::tools::extractActiveVoxelSegmentMasks()
+  extractActiveVoxelSegmentMasks@endlink, which constructs a mask
+  for each connected component of a grid&rsquo;s active voxels.
+- Added threaded level-set CSG tools
+  @vdblink::tools::csgUnionCopy() csgUnionCopy@endlink,
+  @vdblink::tools::csgIntersectionCopy() csgIntersectionCopy@endlink
+  and @vdblink::tools::csgDifferenceCopy() csgDifferenceCopy@endlink,
+  which, unlike the existing CSG tools, produce new grids rather than
+  modifying their input grids.
+  These new tools are faster and use less memory than the existing tools
+  (if only because the input grids never need to be deep-copied).
+- Added a @vdblink::tools::pointMaskGrid() pointMaskGrid@endlink tool,
+  which activates voxels that intersect points from a given list.
+- Added a memory-efficient, binary-mask grid type, dubbed
+  &ldquo;@link tree/LeafNodeMask.h MaskGrid@endlink&rdquo;, that uses
+  a single bit per voxel to represent the voxel&rsquo;s active state
+  (or, equivalently, its value).
+- Added a @vdblink::tools::topologyToLevelSet() topologyToLevelSet@endlink tool
+  that generates a level set from the implicit boundary between active and
+  inactive voxels in an input grid of arbitrary type.
+- Added an
+  @vdblink::tools::extractIsosurfaceMask() extractIsosurfaceMask@endlink tool
+  that generates a mask of the voxels that intersect the implicit surface
+  with a given isovalue.
+- Added a @vdblink::tree::LeafManager::getPreFixSum() getPreFixSum@endlink
+  method to the @vdblink::tree::LeafManager LeafManager@endlink, for
+  user-managed external buffers.
+- Added a @vdblink::tools::Dense::print() print@endlink method to the
+  @vdblink::tools::Dense Dense@endlink grid class.
+
+@par
+Improvements:
+- Significantly improved the performance, parallel scaling and memory usage
+  of the @vdblink::tools::LevelSetFracture() level-set fracture tool@endlink,
+  and implemented a more robust level-set segmentation scheme.
+- Improved the performance of level-set advection by up to five times.
+- Improved the performance of the
+  @vdblink::tools::meshToVolume() mesh-to-volume converter@endlink,
+  particularly for large narrow-band widths and for signed distance fields
+  with dense interior regions.
+- Threaded the Tree destructor and the
+  @vdblink::tree::Tree::clear() Tree::clear@endlink method.
+- Added a parameter to the
+  @vdblink::tools::signedFloodFill() signedFloodFill@endlink and
+  @vdblink::tools::signedFloodFillWithValues() signedFloodFillWithValues@endlink
+  tools to constrain the flood fill to specific levels of the tree.
+
+@par
+Bug fixes:
+- Fixed a bug in the level-set advection tool that could cause
+  non-deterministic behavior.
+  <I>[Thanks to Jeff&nbsp;Lait for reporting this issue.]</I>
+- Fixed a bug that allowed for unexpected implicit conversion
+  between grids of different value types.
+- Fixed a bug whereby the origins of leaf nodes with value type @c bool
+  were ignored during equality comparisons.
+- The @vdblink::tools::GridTransformer grid transformer tool@endlink
+  now correctly handles affine transforms with shear and/or reflection.
+- Fixed a bug in the
+  @vdblink::tools::meshToVolume() mesh-to-volume converter@endlink
+  that could produce incorrect distances for large bandwidths.
+- Fixed a threading bug in the
+  @vdblink::tools::compReplace() compReplace@endlink tool
+  that could cause crashes.
+- Resolved a floating-point exception in
+  @vdblink::math::QuantizedUnitVec::pack() math::QuantizedUnitVec::pack@endlink
+  caused by calling the method with a zero-length vector.
+  <I>[Contributed by Rick&nbsp;Hankins]</I>
+
+@par
+API changes:
+- Renamed @c GudonovsNormSqrd to
+  @vdblink::math::GodunovsNormSqrd GodunovsNormSqrd@endlink
+  <I>[Contributed by Branislav&nbsp;Radjenovic]</I>
+- Renamed @c ValueType to @c PosType in the PointArray interface.
+
+@par
+Python:
+- Updated the Python module for Python&nbsp;3 compatibility.
+- Updated the Python module for Boost 1.60 compatibility, to address
+  &ldquo;no to_python (by-value) converter found&rdquo; exceptions.
+
+@par
+Maya:
+- Fixed bugs related to data ownership, and improved error checking.
+  <I>[Contributed by Crawford&nbsp;Doran]</I>
+- Updated the Read and Write DAG nodes to support file sequences and
+  subframe evaluation.
+
+@par
+Houdini:
+- Added a Segment SOP that separates a grid&rsquo;s connected components
+  into distinct grids.
+- Added a Topology Mask SOP that generates a mask grid from either
+  the active voxels in a grid or from positions in a point cloud.
+  The SOP supports Houdini&nbsp;15&rsquo;s packed points.
+- Added a From Mask SOP that generates a level set or fog volume from
+  the implicit boundary between active and inactive voxels in an
+  input grid of arbitrary type.
+- The Resample and Combine SOPs now correctly handle affine transforms
+  with shear and/or reflection.
+- Updated the Rasterize Points SOP to match the native Copy SOP&rsquo;s
+  instancing behavior.
+- Fixed a bug in the Ray SOP whereby the distance attribute was created
+  with the wrong data type. <I>[Contributed by Nick&nbsp;Avramoussis]</I>
+
+
 @htmlonly <a name="v3_1_0_changes"></a>@endhtmlonly
 @par
 <B>Version 3.1.0</B> - <I>October 1, 2015</I>
@@ -178,6 +310,7 @@ Houdini:
   did not always display as surfaces in the viewport.
 - The Metadata SOP now sets appropriate viewport visualization options
   when the grid class is changed.
+
 
 @htmlonly <a name="v3_0_0_changes"></a>@endhtmlonly
 @par
@@ -441,6 +574,7 @@ Houdini:
   than clipping after reading.
 - The From Polygons and Convert SOPs now default to using the polygon soup
   mesh representation, which uses less memory.
+
 
 @htmlonly <a name="v2_3_0_changes"></a>@endhtmlonly
 @par

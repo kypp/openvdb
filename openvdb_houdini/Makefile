@@ -232,6 +232,7 @@ HOUDINI_SOP_SRC_NAMES := \
     houdini/SOP_OpenVDB_Filter.cc \
     houdini/SOP_OpenVDB_Filter_Level_Set.cc \
     houdini/SOP_OpenVDB_Fracture.cc \
+    houdini/SOP_OpenVDB_From_Mask.cc \
     houdini/SOP_OpenVDB_From_Particles.cc \
     houdini/SOP_OpenVDB_From_Polygons.cc \
     houdini/SOP_OpenVDB_Metadata.cc \
@@ -250,8 +251,10 @@ HOUDINI_SOP_SRC_NAMES := \
     houdini/SOP_OpenVDB_Sample_Points.cc \
     houdini/SOP_OpenVDB_Sort_Points.cc \
     houdini/SOP_OpenVDB_Scatter.cc \
+    houdini/SOP_OpenVDB_Segment.cc \
     houdini/SOP_OpenVDB_To_Polygons.cc \
     houdini/SOP_OpenVDB_To_Spheres.cc \
+    houdini/SOP_OpenVDB_Topology_Mask.cc \
     houdini/SOP_OpenVDB_Transform.cc \
     houdini/SOP_OpenVDB_Vector_Merge.cc \
     houdini/SOP_OpenVDB_Vector_Split.cc \

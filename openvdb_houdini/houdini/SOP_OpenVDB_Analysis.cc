@@ -208,7 +208,7 @@ struct ToolOp
             mOutGrid = tool.process(mThreaded);
 
         } else {
-            ToolT<GridType, cvdb::BoolGrid, hvdb::Interrupter> tool(inGrid, &mBoss);
+            ToolT<GridType, cvdb::BoolGrid/*dummy*/, hvdb::Interrupter> tool(inGrid, &mBoss);
             mOutGrid = tool.process(mThreaded);
         }
     }
@@ -305,9 +305,13 @@ SOP_OpenVDB_Analysis::cookMySop(OP_Context& context)
             UT_String maskStr;
             evalString(maskStr, "maskname", 0, time);
 
+#if (UT_MAJOR_VERSION_INT >= 15)
+            const GA_PrimitiveGroup * maskGroup =
+                parsePrimitiveGroups(maskStr.buffer(), GroupCreator(maskGeo));
+#else
             const GA_PrimitiveGroup * maskGroup =
                 parsePrimitiveGroups(maskStr.buffer(), const_cast<GU_Detail*>(maskGeo));
-
+#endif
             hvdb::VdbPrimCIterator maskIt(maskGeo, maskGroup);
             if (maskIt) {
                 MaskOp op;

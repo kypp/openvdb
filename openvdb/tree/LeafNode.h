@@ -65,6 +65,7 @@ template<typename T, Index Log2Dim>
 class LeafNode
 {
 public:
+    typedef T                            BuildType; 
     typedef T                            ValueType;
     typedef LeafNode<ValueType, Log2Dim> LeafNodeType;
     typedef boost::shared_ptr<LeafNode>  Ptr;
@@ -270,11 +271,8 @@ public:
 #ifndef OPENVDB_2_ABI_COMPATIBLE
             this->loadValues();
             if (mData == NULL) {
-
                 Buffer* self = const_cast<Buffer*>(this);
-
-                // Since this method is const we need a lock (which
-                // will be contended at most once) to make it thread-safe.
+                // This lock will be contended at most once.
                 tbb::spin_mutex::scoped_lock lock(self->mMutex);
                 if (mData == NULL) self->mData = new ValueType[SIZE];
             }
@@ -289,7 +287,11 @@ public:
         {
 #ifndef OPENVDB_2_ABI_COMPATIBLE
             this->loadValues();
-            if (mData == NULL) mData = new ValueType[SIZE];
+            if (mData == NULL) {
+                // This lock will be contended at most once.
+                tbb::spin_mutex::scoped_lock lock(mMutex);
+                if (mData == NULL) mData = new ValueType[SIZE];
+            }
 #endif
             return mData;
         }
@@ -1105,6 +1107,7 @@ public:
     bool isValueMaskOff() const { return mValueMask.isOff(); }
     const NodeMaskType& getValueMask() const { return mValueMask; }
     NodeMaskType& getValueMask() { return mValueMask; }
+    const NodeMaskType& valueMask() const { return mValueMask; }
     void setValueMask(const NodeMaskType& mask) { mValueMask = mask; }
     bool isChildMaskOn(Index) const { return false; } // leaf nodes have no children
     bool isChildMaskOff(Index) const { return true; }
@@ -1196,7 +1199,7 @@ template<typename T, Index Log2Dim>
 inline
 LeafNode<T, Log2Dim>::LeafNode(const LeafNode &other):
     mBuffer(other.mBuffer),
-    mValueMask(other.mValueMask),
+    mValueMask(other.valueMask()),
     mOrigin(other.mOrigin)
 {
 }
@@ -1207,7 +1210,7 @@ template<typename T, Index Log2Dim>
 template<typename OtherValueType>
 inline
 LeafNode<T, Log2Dim>::LeafNode(const LeafNode<OtherValueType, Log2Dim>& other):
-    mValueMask(other.mValueMask),
+    mValueMask(other.valueMask()),
     mOrigin(other.mOrigin)
 {
     struct Local {
@@ -1227,7 +1230,7 @@ inline
 LeafNode<T, Log2Dim>::LeafNode(const LeafNode<OtherValueType, Log2Dim>& other,
                                const ValueType& background, TopologyCopy):
     mBuffer(background),
-    mValueMask(other.mValueMask),
+    mValueMask(other.valueMask()),
     mOrigin(other.mOrigin)
 {
 }
@@ -1238,7 +1241,7 @@ template<typename OtherValueType>
 inline
 LeafNode<T, Log2Dim>::LeafNode(const LeafNode<OtherValueType, Log2Dim>& other,
     const ValueType& offValue, const ValueType& onValue, TopologyCopy):
-    mValueMask(other.mValueMask),
+    mValueMask(other.valueMask()),
     mOrigin(other.mOrigin)
 {
     for (Index i = 0; i < SIZE; ++i) {
@@ -1703,7 +1706,7 @@ inline bool
 LeafNode<T, Log2Dim>::operator==(const LeafNode& other) const
 {
     return mOrigin == other.mOrigin &&
-           mValueMask == other.mValueMask &&
+           mValueMask == other.valueMask() &&
            mBuffer == other.mBuffer;
 }
 
@@ -1848,7 +1851,7 @@ LeafNode<T, Log2Dim>::merge(const LeafNode& other)
 
     OPENVDB_NO_UNREACHABLE_CODE_WARNING_BEGIN
     if (Policy == MERGE_NODES) return;
-    typename NodeMaskType::OnIterator iter = other.mValueMask.beginOn();
+    typename NodeMaskType::OnIterator iter = other.valueMask().beginOn();
     for (; iter; ++iter) {
         const Index n = iter.pos();
         if (mValueMask.isOff(n)) {
@@ -1895,7 +1898,7 @@ template<typename OtherType>
 inline void
 LeafNode<T, Log2Dim>::topologyUnion(const LeafNode<OtherType, Log2Dim>& other)
 {
-    mValueMask |= other.getValueMask();
+    mValueMask |= other.valueMask();
 }
 
 template<typename T, Index Log2Dim>
@@ -1904,7 +1907,7 @@ inline void
 LeafNode<T, Log2Dim>::topologyIntersection(const LeafNode<OtherType, Log2Dim>& other,
                                            const ValueType&)
 {
-    mValueMask &= other.getValueMask();
+    mValueMask &= other.valueMask();
 }
 
 template<typename T, Index Log2Dim>
@@ -1913,7 +1916,7 @@ inline void
 LeafNode<T, Log2Dim>::topologyDifference(const LeafNode<OtherType, Log2Dim>& other,
                                          const ValueType&)
 {
-    mValueMask &= !other.getValueMask();
+    mValueMask &= !other.valueMask();
 }
 
 template<typename T, Index Log2Dim>
@@ -1945,7 +1948,7 @@ LeafNode<T, Log2Dim>::combine(const LeafNode& other, CombineOp& op)
         op(args.setARef(mBuffer[i])
             .setAIsActive(mValueMask.isOn(i))
             .setBRef(other.mBuffer[i])
-            .setBIsActive(other.mValueMask.isOn(i))
+            .setBIsActive(other.valueMask().isOn(i))
             .setResultRef(mBuffer[i]));
         mValueMask.set(i, args.resultIsActive());
     }
@@ -1987,7 +1990,7 @@ LeafNode<T, Log2Dim>::combine2(const LeafNode& other, const OtherType& value,
     args.setBRef(value).setBIsActive(valueIsActive);
     for (Index i = 0; i < SIZE; ++i) {
         op(args.setARef(other.mBuffer[i])
-            .setAIsActive(other.mValueMask.isOn(i))
+            .setAIsActive(other.valueMask().isOn(i))
             .setResultRef(mBuffer[i]));
         mValueMask.set(i, args.resultIsActive());
     }
@@ -2007,7 +2010,7 @@ LeafNode<T, Log2Dim>::combine2(const ValueType& value, const OtherNodeT& other,
     args.setARef(value).setAIsActive(valueIsActive);
     for (Index i = 0; i < SIZE; ++i) {
         op(args.setBRef(other.mBuffer[i])
-            .setBIsActive(other.mValueMask.isOn(i))
+            .setBIsActive(other.valueMask().isOn(i))
             .setResultRef(mBuffer[i]));
         mValueMask.set(i, args.resultIsActive());
     }
@@ -2024,11 +2027,11 @@ LeafNode<T, Log2Dim>::combine2(const LeafNode& b0, const OtherNodeT& b1, Combine
 #endif
     CombineArgs<T, typename OtherNodeT::ValueType> args;
     for (Index i = 0; i < SIZE; ++i) {
-        mValueMask.set(i, b0.mValueMask.isOn(i) || b1.mValueMask.isOn(i));
+        mValueMask.set(i, b0.valueMask().isOn(i) || b1.valueMask().isOn(i));
         op(args.setARef(b0.mBuffer[i])
-            .setAIsActive(b0.mValueMask.isOn(i))
+            .setAIsActive(b0.valueMask().isOn(i))
             .setBRef(b1.mBuffer[i])
-            .setBIsActive(b1.mValueMask.isOn(i))
+            .setBIsActive(b1.valueMask().isOn(i))
             .setResultRef(mBuffer[i]));
         mValueMask.set(i, args.resultIsActive());
     }
@@ -2204,6 +2207,9 @@ operator<<(std::ostream& os, const typename LeafNode<T, Log2Dim>::Buffer& buf)
 
 // Specialization for LeafNodes of type bool
 #include "LeafNodeBool.h"
+
+// Specialization for LeafNodes with mask information only
+#include "LeafNodeMask.h"
 
 #endif // OPENVDB_TREE_LEAFNODE_HAS_BEEN_INCLUDED
 

@@ -78,6 +78,7 @@ public:
     typedef ChildType                         ChildNodeType;
     typedef typename ChildType::LeafNodeType  LeafNodeType;
     typedef typename ChildType::ValueType     ValueType;
+    typedef typename ChildType::BuildType     BuildType;
 
     static const Index LEVEL = 1 + ChildType::LEVEL; // level 0 = leaf
 
@@ -155,7 +156,7 @@ public:
     template<typename OtherChildType>
     RootNode& operator=(const RootNode<OtherChildType>& other);
 
-    ~RootNode() { this->clearTable(); }
+    ~RootNode() { this->clear(); }
 
 private:
     struct Tile {
@@ -468,7 +469,7 @@ public:
     /// @brief Remove all background tiles.
     /// @return the number of tiles removed.
     size_t eraseBackgroundTiles();
-    void clear() { this->clearTable(); }
+    inline void clear();
 
     /// Return @c true if this node's table is either empty or contains only background tiles.
     bool empty() const { return mTable.size() == numBackgroundTiles(); }
@@ -896,7 +897,6 @@ private:
 
     /// Currently no-op, but can be used to define empty and delete keys for mTable
     void initTable() {}
-    inline void clearTable();
     //@{
     /// @internal Used by doVisit2().
     void resetTable(MapType& table) { mTable.swap(table); table.clear(); }
@@ -1124,7 +1124,7 @@ struct RootNodeCopyHelper<RootT, OtherRootT, /*Compatible=*/true>
 
         self.mBackground = Local::convertValue(other.mBackground);
 
-        self.clearTable();
+        self.clear();
         self.initTable();
 
         for (OtherMapCIter i = other.mTable.begin(), e = other.mTable.end(); i != e; ++i) {
@@ -1150,7 +1150,7 @@ RootNode<ChildT>::operator=(const RootNode& other)
     if (&other != this) {
         mBackground = other.mBackground;
 
-        this->clearTable();
+        this->clear();
         this->initTable();
 
         for (MapCIter i = other.mTable.begin(), e = other.mTable.end(); i != e; ++i) {
@@ -1451,7 +1451,7 @@ RootNode<ChildT>::memUsage() const
 
 template<typename ChildT>
 inline void
-RootNode<ChildT>::clearTable()
+RootNode<ChildT>::clear()
 {
     for (MapIter i = mTable.begin(), e = mTable.end(); i != e; ++i) {
         delete i->second.child;
@@ -2192,7 +2192,7 @@ inline bool
 RootNode<ChildT>::readTopology(std::istream& is, bool fromHalf)
 {
     // Delete the existing tree.
-    this->clearTable();
+    this->clear();
 
     if (io::getFormatVersion(is) < OPENVDB_FILE_VERSION_ROOTNODE_MAP) {
         // Read and convert an older-format RootNode.
