@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -629,19 +629,12 @@ struct BBoxFilter
 
     void filterVoxel(const Coord&, const IndexT* begin, const IndexT* end)
     {
-        Vec3d xyz;
         PosType vec;
 
         for (; begin < end; ++begin) {
             mPoints.getPos(*begin, vec);
 
-            // world to index cell centered, similar the PointPartitioner tool.
-            xyz = mMap.applyInverseMap(vec);
-            xyz[0] = math::Round(xyz[0]);
-            xyz[1] = math::Round(xyz[1]);
-            xyz[2] = math::Round(xyz[2]);
-
-            if (mRegion.isInside(xyz)) {
+            if (mRegion.isInside(mMap.applyInverseMap(vec))) {
                 mIndices.push_back(*begin);
             }
         }
@@ -1824,6 +1817,6 @@ struct SameLeafConfig<Dim1, openvdb::tools::PointIndexLeafNode<T2, Dim1> >
 
 #endif // OPENVDB_TOOLS_POINT_INDEX_GRID_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
