@@ -1282,6 +1282,30 @@ maskRegionOfInterest(PointIndexGridCollection::BoolTreeType& mask,
 }
 
 
+template<typename NodeType>
+struct FillActiveValues
+{
+    typedef typename NodeType::ValueType ValueType;
+
+    FillActiveValues(std::vector<NodeType*>& nodes, ValueType val)
+        : mNodes(nodes.empty() ? NULL : &nodes.front()), mValue(val)
+    {
+    }
+
+    void operator()(const tbb::blocked_range<size_t>& range) const {
+        for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
+            NodeType& node = *mNodes[n];
+            for (typename NodeType::ValueOnIter it = node.beginValueOn(); it; ++it) {
+                it.setValue(mValue);
+            }
+        }
+    }
+
+    NodeType  * const * const mNodes;
+    ValueType           const mValue;
+}; // struct FillActiveValues
+
+
 /// Fills the @a bbox region with leafnode level tiles.
 /// (Partially overlapped leafnode tiles are included)
 template<typename TreeAccessorType>
@@ -2562,6 +2586,7 @@ struct RasterizationSettings
         : createDensity(true)
         , clipToFrustum(true)
         , invertMask(false)
+        , exportPointMask(false)
         , densityScale(1.0f)
         , particleScale(1.0f)
         , solidRatio(0.0f)
@@ -2588,7 +2613,7 @@ struct RasterizationSettings
 
     float getFrustumQuality() const { return frustumQuality; }
 
-    bool    createDensity, clipToFrustum, invertMask;
+    bool    createDensity, clipToFrustum, invertMask, exportPointMask;
     float   densityScale, particleScale, solidRatio;
 
     RasterizePoints::DensityTreatment         treatment;
@@ -2688,7 +2713,7 @@ rasterize(RasterizationSettings& settings, std::vector<openvdb::GridBase::Ptr>& 
     }
 
     const bool doTransfer = densityAttribute || !vectorAttributes.empty() || !scalarAttributes.empty();
-    if (!doTransfer || settings.wasInterrupted()) return;
+    if (!(doTransfer || settings.exportPointMask) || settings.wasInterrupted()) return;
 
     // create region of interest mask
 
@@ -2699,7 +2724,26 @@ rasterize(RasterizationSettings& settings, std::vector<openvdb::GridBase::Ptr>& 
 
     applyClippingMask(roiMask, settings);
 
-    if (settings.wasInterrupted()) return;
+    if (settings.exportPointMask) {
+
+        typedef openvdb::Grid<BoolTreeType> BoolGridType;
+        BoolGridType::Ptr exportMask = BoolGridType::create();
+
+        exportMask->setTransform(settings.transform->copy());
+        exportMask->setName("pointmask");
+
+        exportMask->tree().topologyUnion(roiMask);
+
+        std::vector<BoolLeafNodeType*> maskNodes;
+        exportMask->tree().getNodes(maskNodes);
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, maskNodes.size()),
+            FillActiveValues<BoolLeafNodeType>(maskNodes, true));
+
+        outputGrids.push_back(exportMask);
+    }
+
+    if (!doTransfer || settings.wasInterrupted()) return;
 
     std::vector<const BoolLeafNodeType*> maskNodes;
     roiMask.getNodes(maskNodes);
@@ -3124,7 +3168,8 @@ newSopOperator(OP_OperatorTable* table)
     parms.add(hutil::ParmFactory(PRM_FLT_J, "voxelsize", "Voxel Size")
         .setDefault(PRMpointOneDefaults)
         .setRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 5)
-        .setHelpText("The size (length of a side) of the cubic voxels, in world units."));
+        .setHelpText("Uniform voxel edge length in world units.  "
+            "Decrease the voxel size to increase the volume resolution."));
 
     parms.add(hutil::ParmFactory(PRM_FLT_J, "frustumquality", "Frustum Quality")
         .setDefault(PRMoneDefaults)
@@ -3165,8 +3210,9 @@ newSopOperator(OP_OperatorTable* table)
     parms.add(hutil::ParmFactory(PRM_FLT_J, "particlescale", "Particle Scale")
         .setDefault(PRMoneDefaults)
         .setRange(PRM_RANGE_RESTRICTED, 0, PRM_RANGE_UI, 10)
-        .setHelpText("The pscale attribute will be scaled by this. If there is "
-            "no pscale, 1 will be used as the reference."));
+        .setHelpText("The pscale point attribute, which defines the world space "
+            "particle radius, will be scaled by this.  A value of one is assumed "
+            "if the pscale attribute is missing."));
 
     parms.add(hutil::ParmFactory(PRM_FLT_J, "solidratio", "Solid Ratio")
         .setDefault(PRMzeroDefaults)
@@ -3179,6 +3225,9 @@ newSopOperator(OP_OperatorTable* table)
         .setChoiceList(new PRM_ChoiceList(PRM_CHOICELIST_TOGGLE, populateMeshMenu))
         .setHelpText("List of (float or vector) point attributes that will be "
             "rasterized using weighted average blending."));
+
+    parms.add(hutil::ParmFactory(PRM_TOGGLE, "exportpointmask", "Export Point Mask")
+        .setDefault(PRMzeroDefaults));
 
     /////
 
@@ -3325,6 +3374,7 @@ SOP_OpenVDB_Rasterize_Points::cookMySop(OP_Context& context)
 #endif
         }
 
+        const bool exportPointMask = 0 != evalInt("exportpointmask", 0, time);
         const bool createDensity = 0 != evalInt("createdensity", 0, time);
         const bool applyVEX = evalInt("modeling", 0, time);
         const bool createVelocityAttribtue = applyVEX &&
@@ -3344,7 +3394,7 @@ SOP_OpenVDB_Rasterize_Points::cookMySop(OP_Context& context)
                 scalarAttribNames, vectorAttribNames, createVelocityAttribtue, log);
         }
 
-        if (createDensity || !scalarAttribNames.empty() || !vectorAttribNames.empty()) {
+        if (exportPointMask || createDensity || !scalarAttribNames.empty() || !vectorAttribNames.empty()) {
 
             hvdb::Interrupter boss("Rasterize Points");
 
@@ -3370,6 +3420,7 @@ SOP_OpenVDB_Rasterize_Points::cookMySop(OP_Context& context)
             RasterizationSettings settings(*pointsGeo, pointGroup, boss);
 
             settings.createDensity = createDensity;
+            settings.exportPointMask = exportPointMask;
             settings.densityScale = float(densityScale);
             settings.particleScale = float(particleScale);
             settings.solidRatio = float(solidRatio);

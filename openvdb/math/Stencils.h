@@ -55,7 +55,7 @@ namespace math {
 
 
 ////////////////////////////////////////
-    
+
 template<typename DerivedType, typename GridT, bool IsSafe>
 class BaseStencil
 {
@@ -108,7 +108,8 @@ public:
     /// @details This method will check to see if it is necessary to
     /// update the stencil based on the cached index coordinates of
     /// the center point.
-    inline void moveTo(const Vec3R& xyz)
+    template<typename RealType>
+    inline void moveTo(const Vec3<RealType>& xyz)
     {
         Coord ijk = openvdb::Coord::floor(xyz);
         if (ijk != mCenter) this->moveTo(ijk);
@@ -247,7 +248,7 @@ public:
     typedef GridT                             GridType;
     typedef typename GridT::TreeType          TreeType;
     typedef typename GridT::ValueType         ValueType;
-    
+
     static const int SIZE = 7;
 
     SevenPointStencil(const GridT& grid): BaseType(grid, SIZE) {}
@@ -301,7 +302,7 @@ public:
     typedef GridT                             GridType;
     typedef typename GridT::TreeType          TreeType;
     typedef typename GridT::ValueType         ValueType;
-    
+
     static const int SIZE = 8;
 
     BoxStencil(const GridType& grid): BaseType(grid, SIZE) {}
@@ -333,9 +334,9 @@ public:
     ///     + v100 u(1-v)(1-w)     + v101 u(1-v)w     + v110 uv(1-w)     + v111 uvw
     inline ValueType interpolation(const math::Vec3<ValueType>& xyz) const
     {
-        const Real u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
-        const Real v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
-        const Real w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
+        const ValueType u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
+        const ValueType v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
+        const ValueType w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
 
         ValueType V = BaseType::template getValue<0,0,0>();
         ValueType A = static_cast<ValueType>(V + (BaseType::template getValue<0,0,1>() - V) * w);
@@ -361,9 +362,9 @@ public:
     ///     + v100 u(1-v)(1-w)     + v101 u(1-v)w     + v110 uv(1-w)     + v111 uvw
     inline math::Vec3<ValueType> gradient(const math::Vec3<ValueType>& xyz) const
     {
-        const Real u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
-        const Real v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
-        const Real w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
+        const ValueType u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
+        const ValueType v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
+        const ValueType w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
 
         ValueType D[4]={BaseType::template getValue<0,0,1>()-BaseType::template getValue<0,0,0>(),
                         BaseType::template getValue<0,1,1>()-BaseType::template getValue<0,1,0>(),
