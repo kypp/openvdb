@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -44,6 +44,7 @@
 #ifndef OPENVDB_TOOLS_MESH_TO_VOLUME_HAS_BEEN_INCLUDED
 #define OPENVDB_TOOLS_MESH_TO_VOLUME_HAS_BEEN_INCLUDED
 
+#include <openvdb/Platform.h> // for OPENVDB_HAS_CXX11
 #include <openvdb/Types.h>
 #include <openvdb/math/FiniteDifference.h> // for GodunovsNormSqrd
 #include <openvdb/math/Proximity.h> // for closestPointOnTriangleToPoint
@@ -69,9 +70,9 @@
 #include <algorithm> // for std::sort
 #include <deque>
 #include <limits>
+#include <memory> // for auto_ptr/unique_ptr
 #include <sstream>
 #include <vector>
-
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
@@ -235,7 +236,10 @@ private:
 ////////////////////////////////////////
 
 
-// Wrapper functions for the mesh to volume converter
+// Convenience functions for the mesh to volume converter that wrap stl containers.
+//
+// Note the meshToVolume() method declared above is more flexible and better suited
+// for arbitrary data structures.
 
 
 /// @brief Convert a triangle mesh to a level set volume.
@@ -256,6 +260,16 @@ private:
 template<typename GridType>
 inline typename GridType::Ptr
 meshToLevelSet(
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    float halfWidth = float(LEVEL_SET_HALF_WIDTH));
+
+/// Adds support for a @a interrupter callback used to cancel the conversion.
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
     const openvdb::math::Transform& xform,
     const std::vector<Vec3s>& points,
     const std::vector<Vec3I>& triangles,
@@ -285,6 +299,16 @@ meshToLevelSet(
     const std::vector<Vec4I>& quads,
     float halfWidth = float(LEVEL_SET_HALF_WIDTH));
 
+/// Adds support for a @a interrupter callback used to cancel the conversion.
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec4I>& quads,
+    float halfWidth = float(LEVEL_SET_HALF_WIDTH));
+
 
 /// @brief Convert a triangle and quad mesh to a level set volume.
 ///
@@ -305,6 +329,17 @@ meshToLevelSet(
 template<typename GridType>
 inline typename GridType::Ptr
 meshToLevelSet(
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float halfWidth = float(LEVEL_SET_HALF_WIDTH));
+
+/// Adds support for a @a interrupter callback used to cancel the conversion.
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
     const openvdb::math::Transform& xform,
     const std::vector<Vec3s>& points,
     const std::vector<Vec3I>& triangles,
@@ -340,6 +375,18 @@ meshToSignedDistanceField(
     float exBandWidth,
     float inBandWidth);
 
+/// Adds support for a @a interrupter callback used to cancel the conversion.
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToSignedDistanceField(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float exBandWidth,
+    float inBandWidth);
+
 
 /// @brief Convert a triangle and quad mesh to an unsigned distance field.
 ///
@@ -358,6 +405,17 @@ meshToSignedDistanceField(
 template<typename GridType>
 inline typename GridType::Ptr
 meshToUnsignedDistanceField(
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float bandWidth);
+
+/// Adds support for a @a interrupter callback used to cancel the conversion.
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToUnsignedDistanceField(
+    Interrupter& interrupter,
     const openvdb::math::Transform& xform,
     const std::vector<Vec3s>& points,
     const std::vector<Vec3I>& triangles,
@@ -477,6 +535,18 @@ private:
 // Internal utility objects and implementation details
 
 namespace mesh_to_volume_internal {
+
+
+template<typename T>
+struct UniquePtr
+{
+#ifdef OPENVDB_HAS_CXX11
+    typedef std::unique_ptr<T>  type;
+#else
+    typedef std::auto_ptr<T>    type;
+#endif
+};
+
 
 template<typename PointType>
 struct TransformPoints {
@@ -1834,7 +1904,6 @@ combineData(DistTreeType& lhsDist, IndexTreeType& lhsIdx,
     }
 }
 
-
 /// @brief TBB body object to voxelize a mesh of triangles and/or quads into a collection
 /// of VDB grids, namely a squared distance grid, a closest primitive grid and an
 /// intersecting voxels grid (masks the mesh intersecting voxels)
@@ -1953,18 +2022,19 @@ private:
 
     struct SubTask
     {
-        SubTask(const Triangle& prim, DataTable& dataTable, size_t polygonCount)
+        enum { POLYGON_LIMIT = 1000 };
+
+        SubTask(const Triangle& prim, DataTable& dataTable, int subdivisionCount, size_t polygonCount)
             : mLocalDataTable(&dataTable)
             , mPrim(prim)
+            , mSubdivisionCount(subdivisionCount)
             , mPolygonCount(polygonCount)
         {
         }
 
         void operator()() const
         {
-            const size_t minNumTask = size_t(tbb::task_scheduler_init::default_num_threads() * 10);
-
-            if (mPolygonCount > minNumTask) {
+            if (mSubdivisionCount <= 0 || mPolygonCount >= POLYGON_LIMIT) {
 
                 typename VoxelizationDataType::Ptr& dataPtr = mLocalDataTable->local();
                 if (!dataPtr) dataPtr.reset(new VoxelizationDataType());
@@ -1972,33 +2042,47 @@ private:
                 voxelizeTriangle(mPrim, *dataPtr);
 
             } else {
-                spawnTasks(mPrim, *mLocalDataTable, mPolygonCount);
+                spawnTasks(mPrim, *mLocalDataTable, mSubdivisionCount, mPolygonCount);
             }
         }
 
         DataTable * const mLocalDataTable;
-        const Triangle mPrim;
-        const size_t mPolygonCount;
-    };
+        Triangle    const mPrim;
+        int         const mSubdivisionCount;
+        size_t      const mPolygonCount;
+    }; // struct SubTask
 
+    inline static int evalSubdivisionCount(const Triangle& prim)
+    {
+        const double ax = prim.a[0], bx = prim.b[0], cx = prim.c[0];
+        const double dx = std::max(ax, std::max(bx, cx)) - std::min(ax, std::min(bx, cx));
+
+        const double ay = prim.a[1], by = prim.b[1], cy = prim.c[1];
+        const double dy = std::max(ay, std::max(by, cy)) - std::min(ay, std::min(by, cy));
+
+        const double az = prim.a[2], bz = prim.b[2], cz = prim.c[2];
+        const double dz = std::max(az, std::max(bz, cz)) - std::min(az, std::min(bz, cz));
+
+        return int(std::max(dx, std::max(dy, dz)) / double(TreeType::LeafNodeType::DIM * 2));
+    }
 
     void evalTriangle(const Triangle& prim, VoxelizationDataType& data) const
     {
-        const size_t minNumTask = size_t(tbb::task_scheduler_init::default_num_threads() * 10);
+        const size_t polygonCount = mMesh->polygonCount();
+        const int subdivisionCount = polygonCount < SubTask::POLYGON_LIMIT ? evalSubdivisionCount(prim) : 0;
 
-        if (mMesh->polygonCount() > minNumTask) {
-
+        if (subdivisionCount <= 0) {
             voxelizeTriangle(prim, data);
-
         } else {
-
-            spawnTasks(prim, *mDataTable, mMesh->polygonCount());
+            spawnTasks(prim, *mDataTable, subdivisionCount, polygonCount);
         }
     }
 
-    static void spawnTasks(const Triangle& mainPrim, DataTable& dataTable, size_t primCount)
+    static void spawnTasks(
+        const Triangle& mainPrim, DataTable& dataTable, int subdivisionCount, size_t polygonCount)
     {
-        const size_t newPrimCount = primCount * 4;
+        subdivisionCount -= 1;
+        polygonCount *= 4;
 
         tbb::task_group tasks;
 
@@ -2012,22 +2096,22 @@ private:
         prim.a = mainPrim.a;
         prim.b = ab;
         prim.c = ac;
-        tasks.run(SubTask(prim, dataTable, newPrimCount));
+        tasks.run(SubTask(prim, dataTable, subdivisionCount, polygonCount));
 
         prim.a = ab;
         prim.b = bc;
         prim.c = ac;
-        tasks.run(SubTask(prim, dataTable, newPrimCount));
+        tasks.run(SubTask(prim, dataTable, subdivisionCount, polygonCount));
 
         prim.a = ab;
         prim.b = mainPrim.b;
         prim.c = bc;
-        tasks.run(SubTask(prim, dataTable, newPrimCount));
+        tasks.run(SubTask(prim, dataTable, subdivisionCount, polygonCount));
 
         prim.a = ac;
         prim.b = bc;
         prim.c = mainPrim.c;
-        tasks.run(SubTask(prim, dataTable, newPrimCount));
+        tasks.run(SubTask(prim, dataTable, subdivisionCount, polygonCount));
 
         tasks.wait();
     }
@@ -2351,8 +2435,8 @@ struct ExpandNarrowband
         std::vector<Fragment> fragments;
         fragments.reserve(256);
 
-        LeafNodeType      * newDistNodePt = NULL;
-        Int32LeafNodeType * newIndexNodePt = NULL;
+        typename UniquePtr<LeafNodeType>::type      newDistNodePt;
+        typename UniquePtr<Int32LeafNodeType>::type newIndexNodePt;
 
         for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
 
@@ -2374,9 +2458,9 @@ struct ExpandNarrowband
 
                 const ValueType backgroundDist = distAcc.getValue(origin);
 
-                if (!newDistNodePt && !newIndexNodePt) {
-                    newDistNodePt = new LeafNodeType(origin, backgroundDist);
-                    newIndexNodePt = new Int32LeafNodeType(origin, indexAcc.getValue(origin));
+                if (!newDistNodePt.get() && !newIndexNodePt.get()) {
+                    newDistNodePt.reset(new LeafNodeType(origin, backgroundDist));
+                    newIndexNodePt.reset(new Int32LeafNodeType(origin, indexAcc.getValue(origin)));
                 } else {
 
                     if ((backgroundDist < ValueType(0.0)) !=
@@ -2388,8 +2472,8 @@ struct ExpandNarrowband
                     newIndexNodePt->setOrigin(origin);
                 }
 
-                distNodePt = newDistNodePt;
-                indexNodePt = newIndexNodePt;
+                distNodePt = newDistNodePt.get();
+                indexNodePt = newIndexNodePt.get();
 
                 usingNewNodes = true;
             }
@@ -2456,13 +2540,9 @@ struct ExpandNarrowband
 
                 // Export new distance values
                 if (usingNewNodes) {
-                    distNodePt->topologyUnion(*indexNodePt);
-
-                    mDistNodes.push_back(distNodePt);
-                    mIndexNodes.push_back(indexNodePt);
-
-                    newDistNodePt = NULL;
-                    newIndexNodePt = NULL;
+                    newDistNodePt->topologyUnion(*newIndexNodePt);
+                    mDistNodes.push_back(newDistNodePt.release());
+                    mIndexNodes.push_back(newIndexNodePt.release());
                 } else {
                     mUpdatedDistNodes.push_back(distNodePt);
                     mUpdatedIndexNodes.push_back(indexNodePt);
@@ -3138,7 +3218,8 @@ meshToVolume(
     if (interrupter.wasInterrupted(50)) return distGrid;
 
     if (distTree.activeVoxelCount() == 0) {
-        distGrid.reset((new GridType(ValueType(0.0))));
+        distTree.clear();
+        distTree.root().setBackground(exteriorWidth, /*updateChildNodes=*/false);
         return distGrid;
     }
 
@@ -3303,10 +3384,11 @@ meshToVolume(
 
 
 /// @internal This overload is enabled only for grids with a scalar, floating-point ValueType.
-template<typename GridType>
+template<typename GridType, typename Interrupter>
 inline typename boost::enable_if<boost::is_floating_point<typename GridType::ValueType>,
 typename GridType::Ptr>::type
 doMeshConversion(
+    Interrupter& interrupter,
     const openvdb::math::Transform& xform,
     const std::vector<Vec3s>& points,
     const std::vector<Vec3I>& triangles,
@@ -3366,16 +3448,17 @@ doMeshConversion(
     QuadAndTriangleDataAdapter<Vec3s, Vec4I>
         mesh(indexSpacePoints.get(), numPoints, prims.get(), numPrimitives);
 
-    return meshToVolume<GridType>(mesh, xform, exBandWidth, inBandWidth, conversionFlags);
+    return meshToVolume<GridType>(interrupter, mesh, xform, exBandWidth, inBandWidth, conversionFlags);
 }
 
 
 /// @internal This overload is enabled only for grids that do not have a scalar,
 /// floating-point ValueType.
-template<typename GridType>
+template<typename GridType, typename Interrupter>
 inline typename boost::disable_if<boost::is_floating_point<typename GridType::ValueType>,
 typename GridType::Ptr>::type
 doMeshConversion(
+    Interrupter&,
     const math::Transform& /*xform*/,
     const std::vector<Vec3s>& /*points*/,
     const std::vector<Vec3I>& /*triangles*/,
@@ -3400,8 +3483,24 @@ meshToLevelSet(
     const std::vector<Vec3I>& triangles,
     float halfWidth)
 {
+    util::NullInterrupter nullInterrupter;
     std::vector<Vec4I> quads(0);
-    return doMeshConversion<GridType>(xform, points, triangles, quads,
+    return doMeshConversion<GridType>(nullInterrupter, xform, points, triangles, quads,
+        halfWidth, halfWidth);
+}
+
+
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    float halfWidth)
+{
+    std::vector<Vec4I> quads(0);
+    return doMeshConversion<GridType>(interrupter, xform, points, triangles, quads,
         halfWidth, halfWidth);
 }
 
@@ -3414,8 +3513,24 @@ meshToLevelSet(
     const std::vector<Vec4I>& quads,
     float halfWidth)
 {
+    util::NullInterrupter nullInterrupter;
     std::vector<Vec3I> triangles(0);
-    return doMeshConversion<GridType>(xform, points, triangles, quads,
+    return doMeshConversion<GridType>(nullInterrupter, xform, points, triangles, quads,
+        halfWidth, halfWidth);
+}
+
+
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec4I>& quads,
+    float halfWidth)
+{
+    std::vector<Vec3I> triangles(0);
+    return doMeshConversion<GridType>(interrupter, xform, points, triangles, quads,
         halfWidth, halfWidth);
 }
 
@@ -3429,7 +3544,23 @@ meshToLevelSet(
     const std::vector<Vec4I>& quads,
     float halfWidth)
 {
-    return doMeshConversion<GridType>(xform, points, triangles, quads,
+    util::NullInterrupter nullInterrupter;
+    return doMeshConversion<GridType>(nullInterrupter, xform, points, triangles, quads,
+        halfWidth, halfWidth);
+}
+
+
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToLevelSet(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float halfWidth)
+{
+    return doMeshConversion<GridType>(interrupter, xform, points, triangles, quads,
         halfWidth, halfWidth);
 }
 
@@ -3444,7 +3575,24 @@ meshToSignedDistanceField(
     float exBandWidth,
     float inBandWidth)
 {
-    return doMeshConversion<GridType>(xform, points, triangles,
+    util::NullInterrupter nullInterrupter;
+    return doMeshConversion<GridType>(nullInterrupter, xform, points, triangles,
+        quads, exBandWidth, inBandWidth);
+}
+
+
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToSignedDistanceField(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float exBandWidth,
+    float inBandWidth)
+{
+    return doMeshConversion<GridType>(interrupter, xform, points, triangles,
         quads, exBandWidth, inBandWidth);
 }
 
@@ -3458,7 +3606,23 @@ meshToUnsignedDistanceField(
     const std::vector<Vec4I>& quads,
     float bandWidth)
 {
-    return doMeshConversion<GridType>(xform, points, triangles, quads,
+    util::NullInterrupter nullInterrupter;
+    return doMeshConversion<GridType>(nullInterrupter, xform, points, triangles, quads,
+        bandWidth, bandWidth, true);
+}
+
+
+template<typename GridType, typename Interrupter>
+inline typename GridType::Ptr
+meshToUnsignedDistanceField(
+    Interrupter& interrupter,
+    const openvdb::math::Transform& xform,
+    const std::vector<Vec3s>& points,
+    const std::vector<Vec3I>& triangles,
+    const std::vector<Vec4I>& quads,
+    float bandWidth)
+{
+    return doMeshConversion<GridType>(interrupter, xform, points, triangles, quads,
         bandWidth, bandWidth, true);
 }
 
@@ -4013,6 +4177,6 @@ createLevelSetBox(const math::BBox<VecType>& bbox,
 
 #endif // OPENVDB_TOOLS_MESH_TO_VOLUME_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

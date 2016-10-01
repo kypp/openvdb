@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -91,6 +91,9 @@ TestPointPartitioner::testPartitioner()
 
     CPPUNIT_ASSERT(!partitioner->empty());
 
+    // The default interpretation should be cell-centered.
+    CPPUNIT_ASSERT(partitioner->usingCellCenteredTransform());
+
     const size_t expectedPageCount = pointCount / (1u << PointPartitioner::LOG2DIM);
 
     CPPUNIT_ASSERT_EQUAL(expectedPageCount, partitioner->size());
@@ -121,6 +124,6 @@ TestPointPartitioner::testPartitioner()
 }
 
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

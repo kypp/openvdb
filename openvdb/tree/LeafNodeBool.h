@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -111,7 +111,7 @@ public:
 
         void swap(Buffer& other) { if (&other != this) std::swap(mData, other.mData); }
 
-        Index memUsage() const { return mData.memUsage(); }
+        Index memUsage() const { return sizeof(*this); }
         static Index size() { return SIZE; }
 
         /// Return a point to the c-style array of words encoding the bits.
@@ -492,7 +492,9 @@ public:
     void merge(const LeafNode& other, bool bg = false, bool otherBG = false);
     template<MergePolicy Policy> void merge(bool tileValue, bool tileActive);
 
-    void voxelizeActiveTiles() {}
+    /// @brief No-op
+    /// @details This function exists only to enable template instantiation.
+    void voxelizeActiveTiles(bool = true) {}
 
     /// @brief Union this node's set of active values with the active values
     /// of the other node, whose @c ValueType may be different. So a
@@ -933,7 +935,8 @@ template<Index Log2Dim>
 inline Index64
 LeafNode<bool, Log2Dim>::memUsage() const
 {
-    return sizeof(mOrigin) + mValueMask.memUsage() + mBuffer.memUsage();
+    // Use sizeof(*this) to capture alignment-related padding
+    return sizeof(*this);
 }
 
 
@@ -1130,9 +1133,7 @@ template<Index Log2Dim>
 inline bool
 LeafNode<bool, Log2Dim>::isConstant(bool& constValue, bool& state, bool tolerance) const
 {
-    state = mValueMask.isOn();
-
-    if (!(state || mValueMask.isOff())) return false;
+    if (!mValueMask.isConstant(state)) return false;
     
     // Note: if tolerance is true (i.e., 1), then all boolean values compare equal.
     if (!tolerance && !(mBuffer.mData.isOn() || mBuffer.mData.isOff())) return false;
@@ -1766,6 +1767,6 @@ LeafNode<bool, Log2Dim>::doVisit2(NodeT& self, OtherChildAllIterT& otherIter,
 
 #endif // OPENVDB_TREE_LEAF_NODE_BOOL_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

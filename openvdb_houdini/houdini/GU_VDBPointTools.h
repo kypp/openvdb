@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -60,7 +60,7 @@
 #include <openvdb/Platform.h>
 #include <openvdb/tools/PointIndexGrid.h>
 #include <openvdb/tools/ParticleAtlas.h>
-#include <openvdb/tools/PointMaskGrid.h>
+#include <openvdb/tools/PointsToMask.h>
 
 
 /// @brief Houdini point attribute wrapper
@@ -269,7 +269,7 @@ struct PackedMaskConstructor
 #endif
 
             GU_VDBPointList<openvdb::Vec3R>  points(*detailtouse);
-            openvdb::MaskGrid::Ptr grid = openvdb::tools::createPointMaskGrid(points, mXForm);
+            openvdb::MaskGrid::Ptr grid = openvdb::tools::createPointMask(points, mXForm);
             mMaskGrid->tree().topologyUnion(grid->tree());
         }
     }
@@ -400,7 +400,7 @@ GUvdbCreatePointMaskGrid(
 #endif
 
     GU_VDBPointList<openvdb::Vec3R> points( detail, pointGroup );
-    return openvdb::tools::createPointMaskGrid( points, xform );
+    return openvdb::tools::createPointMask( points, xform );
 }
 
 
@@ -429,6 +429,6 @@ GUvdbCreatePointOffsetGrid(
 
 #endif // __GU_VDBPOINTTOOLS_H_HAS_BEEN_INCLUDED__
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

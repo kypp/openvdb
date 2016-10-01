@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -397,7 +397,7 @@ public:
                     // Only add non-empty leafs (empty is defined as all inactive)
 
                     if (!leaf->isEmpty()) {
-                        mMask->addLeaf(*leaf);
+                        mMask->addLeaf(leaf);
                         leaf = NULL;
                     }
 
@@ -567,7 +567,7 @@ public:
             // Only add non-empty leafs (empty is defined as all inactive)
 
             if (!leaf->isEmpty()) {
-                mResult->addLeaf(*leaf);
+                mResult->addLeaf(leaf);
                 leaf = NULL;
             }
         }
@@ -1254,6 +1254,6 @@ void compositeToDense(
 
 #endif //OPENVDB_TOOLS_DENSESPARSETOOLS_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

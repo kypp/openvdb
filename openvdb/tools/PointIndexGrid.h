@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -43,21 +43,22 @@
 #ifndef OPENVDB_TOOLS_POINT_INDEX_GRID_HAS_BEEN_INCLUDED
 #define OPENVDB_TOOLS_POINT_INDEX_GRID_HAS_BEEN_INCLUDED
 
+#include "PointPartitioner.h"
 
+#include <openvdb/Exceptions.h>
 #include <openvdb/Grid.h>
 #include <openvdb/Types.h>
 #include <openvdb/math/Transform.h>
-#include <openvdb/tree/Tree.h>
-#include <openvdb/tree/LeafNode.h>
 #include <openvdb/tree/LeafManager.h>
-#include "PointPartitioner.h"
+#include <openvdb/tree/LeafNode.h>
+#include <openvdb/tree/Tree.h>
 
 #include <boost/scoped_array.hpp>
+#include <deque>
+#include <iostream>
+#include <tbb/atomic.h>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
-#include <tbb/atomic.h>
-#include <iostream>
-#include <deque>
 
 
 namespace openvdb {
@@ -514,8 +515,16 @@ constructPointTree(TreeType& tree, const math::Transform& xform, const PointArra
     size_t leafNodeCount = 0;
 
     {
+        // Important:  Do not disable the cell-centered transform in the PointPartitioner.
+        //             This interpretation is assumed in the PointIndexGrid and all related
+        //             search algorithms.
         PointPartitioner<uint32_t, LeafType::LOG2DIM> partitioner;
         partitioner.construct(points, xform, /*voxelOrder=*/false, /*recordVoxelOffsets=*/true);
+
+        if (!partitioner.usingCellCenteredTransform()) {
+            OPENVDB_THROW(LookupError, "The PointIndexGrid requires a "
+                "cell-centered transform.");
+        }
 
         leafNodeCount = partitioner.size();
         leafNodes.reset(new LeafType*[leafNodeCount]);
@@ -629,19 +638,12 @@ struct BBoxFilter
 
     void filterVoxel(const Coord&, const IndexT* begin, const IndexT* end)
     {
-        Vec3d xyz;
         PosType vec;
 
         for (; begin < end; ++begin) {
             mPoints.getPos(*begin, vec);
 
-            // world to index cell centered, similar the PointPartitioner tool.
-            xyz = mMap.applyInverseMap(vec);
-            xyz[0] = math::Round(xyz[0]);
-            xyz[1] = math::Round(xyz[1]);
-            xyz[2] = math::Round(xyz[2]);
-
-            if (mRegion.isInside(xyz)) {
+            if (mRegion.isInside(mMap.applyInverseMap(vec))) {
                 mIndices.push_back(*begin);
             }
         }
@@ -1824,6 +1826,6 @@ struct SameLeafConfig<Dim1, openvdb::tools::PointIndexLeafNode<T2, Dim1> >
 
 #endif // OPENVDB_TOOLS_POINT_INDEX_GRID_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

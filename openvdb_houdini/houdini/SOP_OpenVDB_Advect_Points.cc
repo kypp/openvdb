@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -493,7 +493,7 @@ public:
 
     template<typename GridType, int IntegrationOrder, bool StaggeredVelocity>
     void constrainedAdvection(const GridType& velocityGrid)
-    {
+    {       
         const GridType& cptGrid = static_cast<const GridType&>(mParms.mCptPrim->getGrid());
         typedef AdvectionOp<GridType, IntegrationOrder, StaggeredVelocity, /*Constrained*/true>
             AdvectionOp;
@@ -842,6 +842,10 @@ SOP_OpenVDBAdvectPoints::evalAdvectionParms(OP_Context& context, AdvectionParms&
             addError(SOP_MESSAGE, "Missing velocity grid");
             return false;
         }
+        if (parms.mVelPrim->getStorageType() != UT_VDB_VEC3F) {
+            addError(SOP_MESSAGE, "Expected velocity grid to be of type Vec3f");
+            return false;
+        }
 
         // Check if the velocity grid uses a staggered representation.
         parms.mStaggered =
@@ -885,6 +889,10 @@ SOP_OpenVDBAdvectPoints::evalAdvectionParms(OP_Context& context, AdvectionParms&
             addError(SOP_MESSAGE, "Missing closest point grid");
             return false;
         }
+        if (parms.mCptPrim->getStorageType() != UT_VDB_VEC3F) {
+            addError(SOP_MESSAGE, "Expected closest point grid to be of type Vec3f");
+            return false;
+        }
 
         parms.mIterations = evalInt("cptIterations", 0, now);
     }
@@ -892,6 +900,6 @@ SOP_OpenVDBAdvectPoints::evalAdvectionParms(OP_Context& context, AdvectionParms&
     return true;
 }
 
-// Copyright (c) 2012-2015 DreamWorks Animation LLC
+// Copyright (c) 2012-2016 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2015 DreamWorks Animation LLC
+# Copyright (c) 2012-2016 DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -166,7 +166,7 @@ BOOST_PYTHON_LIB := -lboost_python-gcc41-mt-python26-1_46_1
 NUMPY_INCL_DIR := /rel/map/generic-2013.22/include
 # The Epydoc executable
 # (leave blank if Epydoc is unavailable)
-EPYDOC := epydoc
+EPYDOC := /rel/map/generic_default-2014.24.237/bin/epydoc
 # Set PYTHON_WRAP_ALL_GRID_TYPES to "yes" to specify that the Python module
 # should expose (almost) all of the grid types defined in openvdb.h
 # Otherwise, only FloatGrid, BoolGrid and Vec3SGrid will be exposed
@@ -251,6 +251,7 @@ ifeq (yes,$(has_log4cplus))
 endif
 
 CXXFLAGS += -m32 -pthread -std=c++11 $(OPTIMIZE) $(INCLDIRS)
+
 ifeq (yes,$(has_blosc))
     CXXFLAGS += -DOPENVDB_USE_BLOSC
 endif
@@ -350,20 +351,21 @@ INCLUDE_NAMES := \
     tools/LevelSetFracture.h \
     tools/LevelSetMeasure.h \
     tools/LevelSetMorph.h \
+    tools/LevelSetPlatonic.h \
     tools/LevelSetRebuild.h \
     tools/LevelSetSphere.h \
     tools/LevelSetTracker.h \
     tools/LevelSetUtil.h \
-    tools/MaskToLevelSet.h \
     tools/MeshToVolume.h \
     tools/Morphology.h \
+    tools/MultiResGrid.h \
     tools/ParticleAtlas.h \
     tools/ParticlesToLevelSet.h \
     tools/PointAdvect.h \
     tools/PointIndexGrid.h \
-    tools/PointMaskGrid.h \
     tools/PointPartitioner.h \
     tools/PointScatter.h \
+    tools/PointsToMask.h \
     tools/PoissonSolver.h \
     tools/Prune.h \
     tools/RayIntersector.h \
@@ -463,7 +465,6 @@ UNITTEST_SRC_NAMES := \
     unittest/TestLevelSetUtil.cc \
     unittest/TestLinearInterp.cc \
     unittest/TestMaps.cc \
-    unittest/TestMaskToLevelSet.cc \
     unittest/TestMat4Metadata.cc \
     unittest/TestMath.cc \
     unittest/TestMeanCurvature.cc \
@@ -471,6 +472,7 @@ UNITTEST_SRC_NAMES := \
     unittest/TestMetadata.cc \
     unittest/TestMetadataIO.cc \
     unittest/TestMetaMap.cc \
+    unittest/TestMultiResGrid.cc \
     unittest/TestName.cc \
     unittest/TestNodeIterator.cc \
     unittest/TestNodeManager.cc \
@@ -478,8 +480,8 @@ UNITTEST_SRC_NAMES := \
     unittest/TestParticleAtlas.cc \
     unittest/TestParticlesToLevelSet.cc \
     unittest/TestPointIndexGrid.cc \
-    unittest/TestPointMaskGrid.cc \
     unittest/TestPointPartitioner.cc \
+    unittest/TestPointsToMask.cc \
     unittest/TestPoissonSolver.cc \
     unittest/TestPrePostAPI.cc \
     unittest/TestQuadraticInterp.cc \
@@ -940,6 +942,6 @@ ifneq (,$(strip $(wildcard $(DEPEND))))
     include $(DEPEND)
 endif
 
-# Copyright (c) 2012-2015 DreamWorks Animation LLC
+# Copyright (c) 2012-2016 DreamWorks Animation LLC
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
