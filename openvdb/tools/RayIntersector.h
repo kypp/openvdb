@@ -614,6 +614,10 @@ public:
         return mTime*mStencil.grid().transform().baseMap()->applyJacobian(mRay.dir()).length();
     }
 
+	bool isProperlyInitialized() const {
+		return mV[0] != 0;
+	}
+
 private:
 
     /// @brief Initiate the local voxel intersection test.

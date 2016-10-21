@@ -199,8 +199,12 @@ struct LevelSetHDDA<TreeT, -1>
     static bool test(TesterT& tester)
     {
         math::DDA<typename TesterT::RayT, 0> dda(tester.ray());
-        tester.init(dda.time());
-        do { if (tester(dda.voxel(), dda.next())) return true; } while(dda.step());
+
+		tester.init(dda.time());
+        do { 
+			if (!tester.isProperlyInitialized())
+				tester.init(dda.time());
+			if (tester(dda.voxel(), dda.next())) return true; } while(dda.step());
         return false;
     }
 };
