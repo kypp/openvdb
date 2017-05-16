@@ -84,7 +84,7 @@ namespace tools {
 /// as all neighbor voxels connected along either one, two or all
 /// three of the primary axes)
 /// </dl>
-	enum NearestNeighbors { NN_UP = 0, NN_DOWN = 1, NN_VERTICAL = 2, NN_FACE = 6, NN_FACE_EDGE = 18, NN_FACE_EDGE_VERTEX = 26 };
+	enum NearestNeighbors { NN_UP = 0, NN_DOWN = 1, NN_VERTICAL = 2, NN_HORIZONTAL, NN_FACE = 6, NN_FACE_EDGE = 18, NN_FACE_EDGE_VERTEX = 26 };
 
 /// @brief Different policies when dilating trees with active tiles
 /// @details
@@ -256,6 +256,7 @@ public:
     void dilateVoxels18();
     /// @brief Face-, edge- and vertex-adjacent dilation pattern.
     void dilateVoxels26();
+	void dilateVoxelsHorizontal();
     void dilateVoxels(int iterations = 1, NearestNeighbors nn = NN_FACE);
 
     /// @brief Face-adjacent erosion pattern.
@@ -394,6 +395,7 @@ protected:
         void operator()(const RangeT& r) const {mTask(const_cast<ErodeVoxelsOp*>(this), r);}
 		void erodeUp(const RangeT&) const;
 		void erodeDown(const RangeT&) const;
+		void erodeHorizontal(const RangeT&) const;
 		void erode2(const RangeT&) const;
         void erode6( const RangeT&) const;
         void erode18(const RangeT&) const;
@@ -465,6 +467,9 @@ Morphology<TreeType>::dilateVoxels(int iterations, NearestNeighbors nn)
         case NN_FACE_EDGE_VERTEX:
             this->dilateVoxels26();
             break;
+		case NN_HORIZONTAL:
+			this->dilateVoxelsHorizontal();
+			break;
         default:
             this->dilateVoxels6();
         }
@@ -512,6 +517,37 @@ Morphology<TreeType>::dilateVoxels6()
     }//loop over leafs
 
     mManager->rebuildLeafArray();
+}//dilateVoxels6
+
+template<typename TreeType>
+inline void
+Morphology<TreeType>::dilateVoxelsHorizontal()
+{
+	/// @todo Currently operates only on leaf voxels; need to extend to tiles.
+	const int leafCount = static_cast<int>(mManager->leafCount());
+
+	// Save the value masks of all leaf nodes.
+	std::vector<MaskType> savedMasks(leafCount);
+	this->copyMasks(savedMasks, *mManager);
+	LeafCache cache(7, mManager->tree());
+	for (int leafIdx = 0; leafIdx < leafCount; ++leafIdx) {
+		const MaskType& oldMask = savedMasks[leafIdx];//original bit-mask of current leaf node
+		cache[0] = &mManager->leaf(leafIdx);
+		cache.setOrigin(cache[0]->origin());
+		for (int x = 0; x < LEAF_DIM; ++x) {
+			for (int y = 0, n = (x << LEAF_LOG2DIM); y < LEAF_DIM; ++y, ++n) {
+				// Extract the portion of the original mask that corresponds to a row in z.
+				if (const Word w = oldMask.template getWord<Word>(n)) {
+
+					// Dilate in the xy-face directions relative to the center leaf
+					cache.mask = w; cache.scatterFacesXY(x, y, 0, n, 3);
+				}
+			}// loop over y
+		}//loop over x
+		cache.clear();
+	}//loop over leafs
+
+	mManager->rebuildLeafArray();
 }//dilateVoxels6
 
 
@@ -719,6 +755,9 @@ Morphology<TreeType>::ErodeVoxelsOp::runParallel(NearestNeighbors nn)
 	case NN_DOWN:
 		mTask = boost::bind(&ErodeVoxelsOp::erodeDown, _1, _2);
 		break;
+	case NN_HORIZONTAL:
+		mTask = boost::bind(&ErodeVoxelsOp::erodeHorizontal, _1, _2);
+		break;
     default:
         mTask = boost::bind(&ErodeVoxelsOp::erode6, _1, _2);
     }
@@ -884,6 +923,29 @@ Morphology<TreeType>::ErodeVoxelsOp::erodeDown(const RangeT& range) const
 							Word(w << 1 | (cache.template gather<0, 0, -1>(1, n) >> (LEAF_DIM - 1))) //&
 							//Word(w >> 1 | (cache.template gather<0, 0,  1>(2, n) << (LEAF_DIM - 1)))
 						));
+				}
+			}// loop over y
+		}//loop over x
+		cache.clear();
+	}//loop over leafs
+}
+
+template <typename TreeType>
+inline void
+Morphology<TreeType>::ErodeVoxelsOp::erodeHorizontal(const RangeT& range) const
+{
+	LeafCache cache(7, mManager.tree());
+	for (size_t leafIdx = range.begin(); leafIdx < range.end(); ++leafIdx) {
+		cache[0] = &mManager.leaf(leafIdx);
+		if (cache[0]->isEmpty()) continue;
+		cache.setOrigin(cache[0]->origin());
+		MaskType& newMask = mSavedMasks[leafIdx];//original bit-mask of current leaf node
+		for (int x = 0; x < LEAF_DIM; ++x) {
+			for (int y = 0, n = (x << LEAF_LOG2DIM); y < LEAF_DIM; ++y, ++n) {
+				// Extract the portion of the original mask that corresponds to a row in z.
+				if (Word& w = newMask.template getWord<Word>(n)) {
+
+					w = Word(w & cache.gatherFacesXY(x, y, 0, n, 3));
 				}
 			}// loop over y
 		}//loop over x
