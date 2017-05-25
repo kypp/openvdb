@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -218,7 +218,10 @@ public:
         return UT_Vector3(vdb_value[0], vdb_value[1], vdb_value[2]);
     }
     inline static UT_Vector3 translateValue(cvdb::Vec3d& vdb_value) {
-        return UT_Vector3((float)vdb_value[0], (float)vdb_value[1], (float)vdb_value[2]);
+        return UT_Vector3(
+            static_cast<float>(vdb_value[0]),
+            static_cast<float>(vdb_value[1]),
+            static_cast<float>(vdb_value[2]));
     }
 
 private:
@@ -519,6 +522,6 @@ SOP_OpenVDB_Sample_Points::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

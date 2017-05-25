@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -493,7 +493,7 @@ public:
 
     template<typename GridType, int IntegrationOrder, bool StaggeredVelocity>
     void constrainedAdvection(const GridType& velocityGrid)
-    {       
+    {
         const GridType& cptGrid = static_cast<const GridType&>(mParms.mCptPrim->getGrid());
         typedef AdvectionOp<GridType, IntegrationOrder, StaggeredVelocity, /*Constrained*/true>
             AdvectionOp;
@@ -855,7 +855,7 @@ SOP_OpenVDBAdvectPoints::evalAdvectionParms(OP_Context& context, AdvectionParms&
         parms.mSteps    = evalInt("steps", 0, now);
         // The underlying code will accumulate, so to make it substeps
         // we need to divide out.
-        parms.mTimeStep /= (float) parms.mSteps;
+        parms.mTimeStep /= static_cast<float>(parms.mSteps);
         parms.mStreamlines  = bool(evalInt("outputStreamlines", 0, now));
 
         evalString(str, "integration", 0, now);
@@ -900,6 +900,6 @@ SOP_OpenVDBAdvectPoints::evalAdvectionParms(OP_Context& context, AdvectionParms&
     return true;
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

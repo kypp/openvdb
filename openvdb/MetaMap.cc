@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -28,8 +28,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-#include <openvdb/metadata/MetaMap.h>
-#include <openvdb/util/logging.h>
+#include "MetaMap.h"
+
+#include "util/logging.h"
 #include <sstream>
 
 
@@ -118,7 +119,7 @@ MetaMap::writeMeta(std::ostream &os) const
     // Write out the number of metadata items we have in the map. Note that we
     // save as Index32 to save a 32-bit number. Using size_t would be platform
     // dependent.
-    Index32 count = (Index32)metaCount();
+    Index32 count = static_cast<Index32>(metaCount());
     os.write(reinterpret_cast<char*>(&count), sizeof(Index32));
 
     // Iterate through each metadata and write it out.
@@ -228,6 +229,6 @@ operator<<(std::ostream& ostr, const MetaMap& metamap)
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

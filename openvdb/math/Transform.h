@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -66,8 +66,8 @@ calculateBounds(const Transform& t, const Vec3d& minWS, const Vec3d& maxWS,
 class OPENVDB_API Transform
 {
 public:
-    typedef boost::shared_ptr<Transform> Ptr;
-    typedef boost::shared_ptr<const Transform> ConstPtr;
+    using Ptr = SharedPtr<Transform>;
+    using ConstPtr = SharedPtr<const Transform>;
 
     Transform(): mMap(MapBase::Ptr(new ScaleMap())) {}
     Transform(const MapBase::Ptr&);
@@ -196,7 +196,7 @@ inline typename MapType::Ptr
 Transform::map()
 {
     if (mMap->type() == MapType::mapType()) {
-        return boost::static_pointer_cast<MapType>(mMap);
+        return StaticPtrCast<MapType>(mMap);
     }
     return typename MapType::Ptr();
 }
@@ -206,7 +206,7 @@ template<typename MapType>
 inline typename MapType::ConstPtr
 Transform::map() const
 {
-    return boost::const_pointer_cast<const MapType>(
+    return ConstPtrCast<const MapType>(
         const_cast<Transform*>(this)->map<MapType>());
 }
 
@@ -305,6 +305,6 @@ processTypedMap(TransformType& transform, OpType& op)
 
 #endif // OPENVDB_MATH_TRANSFORM_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

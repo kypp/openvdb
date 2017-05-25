@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -40,18 +40,18 @@
 /// openvdb::vX_Y_Z::Vec3i, openvdb::vX_Y_Z::io::File, openvdb::vX_Y_Z::tree::Tree, etc.,
 /// where X, Y and Z are OPENVDB_LIBRARY_MAJOR_VERSION, OPENVDB_LIBRARY_MINOR_VERSION
 /// and OPENVDB_LIBRARY_PATCH_VERSION, respectively (defined below).
-#define OPENVDB_VERSION_NAME v3_2_0
+#define OPENVDB_VERSION_NAME v4_0_1
 
 // Library major, minor and patch version numbers
-#define OPENVDB_LIBRARY_MAJOR_VERSION_NUMBER 3
-#define OPENVDB_LIBRARY_MINOR_VERSION_NUMBER 2
-#define OPENVDB_LIBRARY_PATCH_VERSION_NUMBER 0
+#define OPENVDB_LIBRARY_MAJOR_VERSION_NUMBER 4
+#define OPENVDB_LIBRARY_MINOR_VERSION_NUMBER 0
+#define OPENVDB_LIBRARY_PATCH_VERSION_NUMBER 1
 
 /// @brief Library version number string of the form "<major>.<minor>.<patch>"
 /// @details This is a macro rather than a static constant because we typically
 /// want the compile-time version number, not the runtime version number
 /// (although the two are usually the same).
-#define OPENVDB_LIBRARY_VERSION_STRING "3.2.0"
+#define OPENVDB_LIBRARY_VERSION_STRING "4.0.1"
 
 /// Library version number as a packed integer ("%02x%02x%04x", major, minor, patch)
 #define OPENVDB_LIBRARY_VERSION_NUMBER \
@@ -93,7 +93,7 @@ const uint32_t OPENVDB_LIBRARY_VERSION = OPENVDB_LIBRARY_VERSION_NUMBER;
 /// @brief The current version number of the VDB file format
 /// @details  This can be used to enable various backwards compatability switches
 /// or to reject files that cannot be read.
-const uint32_t OPENVDB_FILE_VERSION = 223;
+const uint32_t OPENVDB_FILE_VERSION = 224;
 
 /// Notable file format version numbers
 enum {
@@ -109,7 +109,8 @@ enum {
     OPENVDB_FILE_VERSION_FLOAT_FRUSTUM_BBOX = 221,
     OPENVDB_FILE_VERSION_NODE_MASK_COMPRESSION = 222,
     OPENVDB_FILE_VERSION_BLOSC_COMPRESSION = 223,
-    OPENVDB_FILE_VERSION_POINT_INDEX_GRID = 223
+    OPENVDB_FILE_VERSION_POINT_INDEX_GRID = 223,
+    OPENVDB_FILE_VERSION_MULTIPASS_IO = 224
 };
 
 
@@ -128,6 +129,6 @@ struct VersionId {
 
 #endif // OPENVDB_VERSION_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

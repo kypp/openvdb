@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -292,8 +292,8 @@ protected:
         LeafType* leaf;//null if a tile
         bool      init;//true if initialization is required
         bool      isOn;//true if an active tile
-        Neighbor() : leaf(NULL), init(true) {}
-        inline void clear() { leaf = NULL; init = true; }
+        Neighbor() : leaf(nullptr), init(true) {}
+        inline void clear() { leaf = nullptr; init = true; }
         template<int DX, int DY, int DZ>
         void scatter(AccessorType& acc, const Coord &xyz, int indx, Word mask)
         {
@@ -301,7 +301,7 @@ protected:
                 init = false;
                 Coord orig = xyz.offsetBy(DX*LEAF_DIM, DY*LEAF_DIM, DZ*LEAF_DIM);
                 leaf = acc.probeLeaf(orig);
-                if (leaf==NULL && !acc.isValueOn(orig)) leaf = acc.touchLeaf(orig);
+                if ((leaf == nullptr) && !acc.isValueOn(orig)) leaf = acc.touchLeaf(orig);
             }
 #ifndef _MSC_VER // Visual C++ doesn't guarantee thread-safe initialization of local statics
             static
@@ -337,7 +337,7 @@ protected:
         }
         ~LeafCache() { delete [] leafs; }
         LeafType*& operator[](int offset) { return leafs[offset]; }
-        inline void clear() { for (size_t i=0; i<size; ++i) leafs[i]=NULL; }
+        inline void clear() { for (size_t i = 0; i < size; ++i) leafs[i] = nullptr; }
         inline void setOrigin(const Coord& xyz) { origin = &xyz; }
         inline void scatter(int n, int indx)
         {
@@ -1157,7 +1157,7 @@ class DilationOp
 public:
 
     DilationOp(TreeT &tree, int iterations, NearestNeighbors nn, TilePolicy mode)
-        : mIter(iterations), mNN(nn), mPool(NULL), mLeafs(NULL)
+        : mIter(iterations), mNN(nn), mPool(nullptr), mLeafs(nullptr)
     {
         const size_t numLeafs = this->init( tree, mode );
         const size_t numThreads = size_t(tbb::task_scheduler_init::default_num_threads());
@@ -1250,6 +1250,6 @@ dilateActiveValues(tree::LeafManager<TreeType>& manager,
 
 #endif // OPENVDB_TOOLS_MORPHOLOGY_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

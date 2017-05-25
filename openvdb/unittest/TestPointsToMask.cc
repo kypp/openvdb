@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -28,11 +28,11 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-#include <cppunit/extensions/HelperMacros.h>
+#include <openvdb/openvdb.h>
 #include <openvdb/math/Math.h> // for math::Random01
 #include <openvdb/tools/PointsToMask.h>
 #include <openvdb/util/CpuTimer.h>
-
+#include <cppunit/extensions/HelperMacros.h>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -198,9 +198,6 @@ TestPointsToMask::testPointsToMask()
     }
 }
 
-
-
-
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

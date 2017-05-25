@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -131,15 +131,14 @@
 #endif
 
 
-/// Visual C++ does not have constants like M_PI unless this is defined.
-/// @note This is needed even though the core library is built with this but
-/// hcustom 12.1 doesn't define it. So this is needed for HDK operators.
-#ifndef _USE_MATH_DEFINES
-    #define _USE_MATH_DEFINES
-#endif
-
-/// Visual C++ does not have round
-#ifdef _MSC_VER	
+#ifdef _MSC_VER
+    /// Visual C++ does not have constants like M_PI unless this is defined.
+    /// @note This is needed even though the core library is built with this but
+    /// hcustom 12.1 doesn't define it. So this is needed for HDK operators.
+    #ifndef _USE_MATH_DEFINES
+        #define _USE_MATH_DEFINES
+    #endif
+    /// Visual C++ does not have round
     #include <cmath>
     using std::round;
 #endif
@@ -206,6 +205,6 @@ using std::uint64_t;
 
 #endif // OPENVDB_PLATFORM_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

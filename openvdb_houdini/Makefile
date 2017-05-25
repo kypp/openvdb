@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2016 DreamWorks Animation LLC
+# Copyright (c) 2012-2017 DreamWorks Animation LLC
 #
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -35,14 +35,15 @@
 #   houdinisops         Houdini OpenVDB SOPs (installed into HOUDINI_DESTDIR)
 #
 #   all                 [default target] all of the above
+#   install_lib         install houdinilib into subdirectories of DESTDIR
 #   install             install houdinilib into subdirectories of DESTDIR,
 #                       and the SOPs into HOUDINI_DESTDIR
 #   clean               delete generated files from the local directory
 #   depend              recompute source file header dependencies
 #
 # Options:
-#   abi=2               build for compatibility with the OpenVDB 2.x Grid ABI
-#                       (some OpenVDB 3.x features will be disabled)
+#   abi=3               build for compatibility with the OpenVDB 3.x Grid ABI
+#                       (some OpenVDB 4.x features will be disabled)
 #   shared=no           link executables against static OpenVDB libraries
 #                       (default: link against shared libraries)
 #   debug=yes           build with debugging symbols and without optimization
@@ -99,6 +100,13 @@ TBB_INCL_DIR := $(HT)/include
 TBB_LIB_DIR := $(HDSO)
 TBB_LIB := -ltbb
 
+# The parent directory of the log4cplus/ header directory
+# (leave blank if log4cplus is unavailable)
+LOG4CPLUS_INCL_DIR :=
+# The directory containing liblog4cplus
+LOG4CPLUS_LIB_DIR :=
+LOG4CPLUS_LIB := -llog4cplus
+
 
 #
 # Ideally, users shouldn't need to change anything below this line.
@@ -150,15 +158,27 @@ else
     QUIET := > /dev/null
 endif
 
+has_log4cplus := no
+ifneq (,$(and $(LOG4CPLUS_LIB_DIR),$(LOG4CPLUS_INCL_DIR),$(LOG4CPLUS_LIB)))
+    has_log4cplus := yes
+endif
+
 INCLDIRS := -I . -I .. -isystem $(BOOST_INCL_DIR) -isystem $(ILMBASE_INCL_DIR) -isystem $(TBB_INCL_DIR)
+ifeq (yes,$(has_log4cplus))
+    INCLDIRS += -isystem $(LOG4CPLUS_INCL_DIR)
+endif
 HCUSTOM_INCLDIRS := $(subst isystem,I,$(INCLDIRS))
 
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 
 CXXFLAGS += -pthread $(OPTIMIZE) $(INCLDIRS) -DIGNORE_HDK_DEPRECATIONS
-ifeq (2,$(strip $(abi)))
-    CXXFLAGS += -DOPENVDB_2_ABI_COMPATIBLE
-    HCUSTOM_EXTRA_CFLAGS += -DOPENVDB_2_ABI_COMPATIBLE
+ifeq (yes,$(has_log4cplus))
+    CXXFLAGS += -DOPENVDB_USE_LOG4CPLUS
+    HCUSTOM_EXTRA_CFLAGS += -DOPENVDB_USE_LOG4CPLUS
+endif
+ifeq (3,$(strip $(abi)))
+    CXXFLAGS += -DOPENVDB_3_ABI_COMPATIBLE
+    HCUSTOM_EXTRA_CFLAGS += -DOPENVDB_3_ABI_COMPATIBLE
 endif
 ifdef MBSD
     # Darwin ld treats undefined symbols as errors by default;
@@ -183,6 +203,10 @@ LIBS_RPATH := \
     -Wl,-rpath,$(TBB_LIB_DIR) -L$(TBB_LIB_DIR) $(TBB_LIB) \
     -Wl,-rpath,$(BOOST_LIB_DIR) -L$(BOOST_LIB_DIR) $(BOOST_LIB) \
 #
+ifeq (yes,$(has_log4cplus))
+    LIBS += -L$(LOG4CPLUS_LIB_DIR) $(LOG4CPLUS_LIB)
+    LIBS_RPATH += -Wl,-rpath,$(LOG4CPLUS_LIB_DIR) -L$(LOG4CPLUS_LIB_DIR) $(LOG4CPLUS_LIB)
+endif
 ifdef LINUX
     LIBS += -lrt
     LIBS_RPATH += -lrt
@@ -198,6 +222,7 @@ LIBHOUDINI_INCLUDE_NAMES := \
     houdini/OP_NodeChain.h \
     houdini/geometry.h \
     houdini/ParmFactory.h \
+    houdini/PointUtils.h \
     houdini/SOP_NodeVDB.h \
     houdini/UT_VDBTools.h \
     houdini/UT_VDBUtils.h \
@@ -212,6 +237,7 @@ LIBHOUDINI_SRC_NAMES := \
     houdini/GU_VDBPointTools.cc \
     houdini/geometry.cc \
     houdini/ParmFactory.cc \
+    houdini/PointUtils.cc \
     houdini/SOP_NodeVDB.cc \
     houdini/UT_VDBUtils.cc \
     houdini/Utils.cc \
@@ -222,6 +248,7 @@ HOUDINI_SOP_SCRIPT_NAMES := \
     houdini/DW_OpenVDBRasterizePoints.cmd \
 #
 HOUDINI_SOP_SRC_NAMES := \
+    houdini/GR_PrimVDBPoints.cc \
     houdini/SOP_OpenVDB_Advect.cc \
     houdini/SOP_OpenVDB_Advect_Points.cc \
     houdini/SOP_OpenVDB_Analysis.cc \
@@ -242,6 +269,8 @@ HOUDINI_SOP_SRC_NAMES := \
     houdini/SOP_OpenVDB_Noise.cc \
     houdini/SOP_OpenVDB_Occlusion_Mask.cc \
     houdini/SOP_OpenVDB_Platonic.cc \
+    houdini/SOP_OpenVDB_Points_Convert.cc \
+    houdini/SOP_OpenVDB_Points_Group.cc \
     houdini/SOP_OpenVDB_Prune.cc \
     houdini/SOP_OpenVDB_Rasterize_Points.cc \
     houdini/SOP_OpenVDB_Ray.cc \
@@ -301,60 +330,20 @@ ifeq (no,$(strip $(shared)))
     LIBHOUDINI := $(LIBHOUDINI_STATIC)
 else
     LIBHOUDINI := $(LIBHOUDINI_SHARED)
-
-    # For debugging, pass "rpath=yes" (the default setting) to encode
-    # the path to libopenvdb.so into SOPs.  With "rpath=no", the directory
-    # containing libopenvdb.so will need to be added to LD_LIBRARY_PATH.
-    ifeq (no,$(strip $(rpath)))
-        LIBOPENVDB_RPATH :=
-    else
-        LIBOPENVDB_RPATH := -Wl,-rpath,$(OPENVDB_LIB_DIR)
-    endif # rpath
-    HCUSTOM_EXTRA_LDFLAGS += $(LIBOPENVDB_RPATH)
+    # Encode the path to libopenvdb.so into plugins, and because some
+    # plugins might depend on Houdini libraries that are not linked into
+    # hython (among other tools), encode the Houdini library path as well.
+    HCUSTOM_EXTRA_LDFLAGS += -Wl,-rpath,$(OPENVDB_LIB_DIR) -Wl,-rpath,$(HDSO)
 endif # shared
 
 # Environment variables to pass to hcustom
 HCUSTOM_EXPORT :=
 ifneq (,$(strip $(HCUSTOM_EXTRA_CFLAGS)$(HCUSTOM_EXTRA_LDFLAGS)))
-    # Prior to Houdini 13.0.548 and 14.0.105, the only way to pass extra compiler flags
-    # to hcustom was to append them to the compiler name and pass the result in the
-    # environment variable HOUDINI_CC.
-    ifeq (use_houdini_cc,$(shell test \
-        \( $(HOUDINI_MAJOR_RELEASE) -lt 13 \) \
-        -o \( \( $(HOUDINI_MAJOR_RELEASE) -eq 13 \) -a \( $(HOUDINI_BUILD_VERSION) -lt 548 \) \) \
-        -o \( \( $(HOUDINI_MAJOR_RELEASE) -eq 14 \) -a \( $(HOUDINI_MINOR_RELEASE) -eq 0 \) \
-            -a \( $(HOUDINI_BUILD_VERSION) -lt 105 \) \) \
-        && echo use_houdini_cc))
-        ifeq (,$(strip $(HOUDINI_CC)))
-            # If HOUDINI_CC is not set, set it to CXX if CXX is set, otherwise set it to
-            # something platform-appropriate.  (This replicates the logic in hcustom.)
-            ifneq (,$(strip $(CXX)))
-                HOUDINI_CC = $(CXX)
-            else
-                ifdef LINUX
-                    HOUDINI_CC = g++
-                else ifdef MBSD
-                    HOUDINI_CC = clang++
-                #else ifdef WINDOWS_NT  # TODO
-                #    HOUDINI_CC =
-                else
-                    HOUDINI_CC =
-                endif
-            endif
-        endif
-        ifeq (,$(strip $(HOUDINI_CC)))
-            $(error Cannot determine which C++ compiler to use with hcustom; please specify a compiler by setting $$(CXX))
-        endif
-        HCUSTOM_EXPORT := HOUDINI_CC='$(HOUDINI_CC) $(HCUSTOM_EXTRA_CFLAGS) $(HCUSTOM_EXTRA_LDFLAGS)'
-    else
-        # From Houdini 13.0.548 and 14.0.105 on, hcustom recognizes
-        # the environment variables HCUSTOM_CFLAGS and HCUSTOM_LDFLAGS.
-        ifneq (,$(strip $(HCUSTOM_EXTRA_CFLAGS)))
-            HCUSTOM_EXPORT += HCUSTOM_CFLAGS=$(strip $(HCUSTOM_EXTRA_CFLAGS))
-        endif
-        ifneq (,$(strip $(HCUSTOM_EXTRA_LDFLAGS)))
-            HCUSTOM_EXPORT += HCUSTOM_LDFLAGS=$(strip $(HCUSTOM_EXTRA_LDFLAGS))
-        endif
+    ifneq (,$(strip $(HCUSTOM_EXTRA_CFLAGS)))
+        HCUSTOM_EXPORT += HCUSTOM_CFLAGS="$(strip $(HCUSTOM_EXTRA_CFLAGS))"
+    endif
+    ifneq (,$(strip $(HCUSTOM_EXTRA_LDFLAGS)))
+        HCUSTOM_EXPORT += HCUSTOM_LDFLAGS="$(strip $(HCUSTOM_EXTRA_LDFLAGS))"
     endif
 endif
 ifneq (,$(strip $(HCUSTOM_EXPORT)))
@@ -375,7 +364,7 @@ ALL_TARGETS := \
 
 .SUFFIXES: .o .cc
 
-.PHONY: all clean depend houdinisops houdinilib install
+.PHONY: all clean depend houdinisops houdinilib install_lib install
 
 .cc.o:
 	@echo "Building $@ because of $(call list_deps)"
@@ -423,6 +412,8 @@ endif
 # The .o isn't dependent on $(LIBHOUDINI), but the .so is.
 $(HOUDINI_SOP_OBJ_NAMES): $(LIBHOUDINI)
 
+houdini/GR_PrimVDBPoints.o: HCUSTOM_FLAGS += -L$(HDSO) -lHoudiniAPPS3
+
 ifeq (no,$(strip $(shared)))
 # Link SOPs against static OpenVDB libraries.
 $(HOUDINI_SOP_OBJ_NAMES): %.o: %.cc
@@ -451,7 +442,7 @@ houdinisops: $(HOUDINI_SOP_SO_NAMES) $(HOUDINI_SOP_SCRIPT_NAMES) houdini/SOP_Ope
 	fi
 	cp -f $(HOUDINI_SOP_SCRIPT_NAMES) $(HOUDINI_DESTDIR)/../scripts/sop/
 
-install: houdinilib houdinisops
+install_lib: houdinilib
 	mkdir -p $(DESTDIR)/include/openvdb_houdini
 	@echo "Created $(DESTDIR)/include/openvdb_houdini"
 	mkdir -p $(DESTDIR)/include/houdini_utils
@@ -472,6 +463,8 @@ install: houdinilib houdinisops
 	        ln -f -s $(LIBHOUDINI_SHARED) $(LIBHOUDINI_NAME).so; fi; \
 	    popd > /dev/null
 	@echo "Copied libopenvdb_houdini to $(DESTDIR)/lib/"
+
+install: install_lib houdinisops
 
 # TODO: This accumulates all source file dependencies into a single file
 # containing a rule for each *.o file.  Consider generating a separate
@@ -501,6 +494,6 @@ ifneq (,$(strip $(wildcard $(DEPEND))))
     include $(DEPEND)
 endif
 
-# Copyright (c) 2012-2016 DreamWorks Animation LLC
+# Copyright (c) 2012-2017 DreamWorks Animation LLC
 # All rights reserved. This software is distributed under the
 # Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

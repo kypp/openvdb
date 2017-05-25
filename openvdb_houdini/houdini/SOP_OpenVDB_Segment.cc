@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -78,9 +78,8 @@ namespace
 
 struct SegmentActiveVoxels
 {
-    SegmentActiveVoxels(GU_Detail& geo, bool visualize, bool appendNumber, hvdb::Interrupter& boss)
+    SegmentActiveVoxels(GU_Detail& geo, bool visualize, bool appendNumber, hvdb::Interrupter&)
         : mGeoPt(&geo)
-        , mBossPt(&boss)
         , mVisualize(visualize)
         , mAppendNumber(appendNumber)
     {
@@ -125,7 +124,6 @@ struct SegmentActiveVoxels
 
 private:
     GU_Detail         * const mGeoPt;
-    hvdb::Interrupter * const mBossPt;
     bool                const mVisualize;
     bool                const mAppendNumber;
 }; // struct SegmentActiveVoxels
@@ -133,9 +131,8 @@ private:
 
 struct SegmentSDF
 {
-    SegmentSDF(GU_Detail& geo, bool visualize, bool appendNumber, hvdb::Interrupter& boss)
+    SegmentSDF(GU_Detail& geo, bool visualize, bool appendNumber, hvdb::Interrupter&)
         : mGeoPt(&geo)
-        , mBossPt(&boss)
         , mVisualize(visualize)
         , mAppendNumber(appendNumber)
     {
@@ -181,7 +178,6 @@ struct SegmentSDF
 
 private:
     GU_Detail         * const mGeoPt;
-    hvdb::Interrupter * const mBossPt;
     bool                const mVisualize;
     bool                const mAppendNumber;
 }; // struct SegmentSDF
@@ -323,6 +319,6 @@ SOP_OpenVDB_Segment::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

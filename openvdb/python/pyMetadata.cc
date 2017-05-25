@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -64,7 +64,10 @@ void (MetadataWrap::*copy1)(const Metadata&) = &MetadataWrap::copy;
 } // end anonymous namespace
 
 
-void exportMetadata()
+void exportMetadata();
+
+void
+exportMetadata()
 {
     py::class_<MetadataWrap, boost::noncopyable> clss(
         /*classname=*/"Metadata",
@@ -87,6 +90,6 @@ void exportMetadata()
     py::register_ptr_to_python<Metadata::Ptr>();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

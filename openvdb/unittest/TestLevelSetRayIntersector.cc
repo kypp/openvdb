@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -28,6 +28,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
+/// @file unittest/TestLevelSetRayIntersector.cc
 /// @author Ken Museth
 
 // Uncomment to enable statistics of ray-intersections
@@ -49,9 +50,6 @@
 #include <iostream>
 #endif
 
-
-#define ASSERT_DOUBLES_EXACTLY_EQUAL(expected, actual) \
-    CPPUNIT_ASSERT_DOUBLES_EQUAL((expected), (actual), /*tolerance=*/0.0);
 
 #define ASSERT_DOUBLES_APPROX_EQUAL(expected, actual) \
     CPPUNIT_ASSERT_DOUBLES_EQUAL((expected), (actual), /*tolerance=*/1.e-6);
@@ -411,6 +409,6 @@ TestLevelSetRayIntersector::stats()
 
 #undef STATS_TEST
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

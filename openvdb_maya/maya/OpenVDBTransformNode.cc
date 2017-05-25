@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -28,6 +28,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
+/// @file OpenVDBTransformNode.cc
 /// @author FX R&D OpenVDB team
 
 #include "OpenVDBPlugin.h"
@@ -270,14 +271,15 @@ MStatus OpenVDBTransformNode::compute(const MPlug& plug, MDataBlock& data)
 
             for (mvdb::GridCPtrVecIter it = grids.begin(); it != grids.end(); ++it) {
 
-                openvdb::GridBase::Ptr grid = (*it)->copyGrid(); // shallow copy, shares the tree
+                openvdb::GridBase::ConstPtr grid = (*it)->copyGrid(); // shallow copy, shares tree
 
                 // Merge the transform's current affine representation with the new affine map.
                 AffineMap::Ptr compound(
                     new AffineMap(*grid->transform().baseMap()->getAffineMap(), map));
 
                 // Simplify the affine map and replace the transform.
-                grid->setTransform(Transform::Ptr(new Transform(openvdb::math::simplify(compound))));
+                openvdb::ConstPtrCast<openvdb::GridBase>(grid)->setTransform(
+                    Transform::Ptr(new Transform(openvdb::math::simplify(compound))));
 
                 outputVdb->insert(grid);
             }
@@ -292,6 +294,6 @@ MStatus OpenVDBTransformNode::compute(const MPlug& plug, MDataBlock& data)
     return MS::kUnknownParameter;
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -161,9 +161,9 @@ struct PickleSuite: public py::pickle_suite
     /// Restore the given Transform to a saved state.
     static void setstate(py::object xformObj, py::object stateObj)
     {
-        math::Transform::Ptr xform;
+        math::Transform* xform = nullptr;
         {
-            py::extract<math::Transform::Ptr> x(xformObj);
+            py::extract<math::Transform*> x(xformObj);
             if (x.check()) xform = x();
             else return;
         }
@@ -246,6 +246,8 @@ struct PickleSuite: public py::pickle_suite
 
 } // namespace pyTransform
 
+
+void exportTransform();
 
 void
 exportTransform()
@@ -350,6 +352,6 @@ exportTransform()
     py::register_ptr_to_python<math::Transform::Ptr>();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

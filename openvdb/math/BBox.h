@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -72,7 +72,10 @@ public:
     explicit BBox(const ElementType* xyz, bool sorted = true);
 
     /// @brief Copy constructor
-    BBox(const BBox& other);
+    BBox(const BBox&) = default;
+
+    /// @brief Assignment operator
+    BBox& operator=(const BBox&) = default;
 
     /// @brief Sort the min/max by x,y,z component.
     void sort();
@@ -217,14 +220,6 @@ BBox<Vec3T>::BBox(const ElementType* xyz, bool sorted):
     mMax(xyz[3], xyz[4], xyz[5])
 {
     if (!sorted) this->sort();
-}
-
-
-template<typename Vec3T>
-inline
-BBox<Vec3T>::BBox(const BBox& other):
-    mMin(other.mMin), mMax(other.mMax)
-{
 }
 
 
@@ -462,6 +457,6 @@ operator<<(std::ostream& os, const BBox<Vec3T>& b)
 
 #endif // OPENVDB_MATH_BBOX_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -276,11 +276,13 @@ frustumTransformFromCamera(
         OBJ_Node *meobj = node.getCreator()->castToOBJNode();
         if (meobj) {
             node.addExtraInput(meobj, OP_INTEREST_DATA);
-            if (!cam.getRelativeTransform(*meobj, M, context))
+            if (!cam.getRelativeTransform(*meobj, M, context)) {
                 node.addTransformError(cam, "relative");
+            }
         } else {
-            if (!((OP_Node *)&cam)->getWorldTransform(M, context))
+            if (!static_cast<OP_Node*>(&cam)->getWorldTransform(M, context)) {
                 node.addTransformError(cam, "world");
+            }
         }
 
         for (unsigned i = 0; i < 4; ++i) {
@@ -831,6 +833,6 @@ GUconvertCopySingleVertexPrimAttribsAndGroups(
 
 #endif // Prior to 12.5.245
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

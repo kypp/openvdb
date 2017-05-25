@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -27,11 +27,10 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-///
+
 /// @file MultiResGrid.h
 ///
-/// @brief Ken Museth
+/// @author Ken Museth
 ///
 /// @warning This class is fairly new and as such has not seen a lot of
 /// use in production. Please report any issues or request for new
@@ -46,7 +45,6 @@
 ///
 /// @note Prolongation means interpolation from coarse -> fine
 /// @note Restriction means interpolation (or remapping) from fine -> coarse
-///
 
 #ifndef OPENVDB_TOOLS_MULTIRESGRID_HAS_BEEN_INCLUDED
 #define OPENVDB_TOOLS_MULTIRESGRID_HAS_BEEN_INCLUDED
@@ -56,21 +54,18 @@
 #include <openvdb/math/Math.h>
 #include <openvdb/math/Operators.h>
 #include <openvdb/math/Stencils.h>
-#include <openvdb/metadata/StringMetadata.h>
-#include <openvdb/tools/Interpolation.h>
-#include <openvdb/tools/Morphology.h>
-#include <openvdb/tools/Prune.h>
-#include <openvdb/tools/SignedFloodFill.h>
-#include <openvdb/tools/ValueTransformer.h>
+#include <openvdb/Metadata.h>
 #include <openvdb/tree/LeafManager.h>
 #include <openvdb/tree/NodeManager.h>
+#include "Interpolation.h"
+#include "Morphology.h"
+#include "Prune.h"
+#include "SignedFloodFill.h"
+#include "ValueTransformer.h"
 
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/task_scheduler_init.h>
 #include <tbb/tbb_thread.h>
-
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/utility/enable_if.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -112,7 +107,7 @@ public:
     /// @param levels The number of trees in this MultiResGrid
     /// @param grid High-resolution input grid
     /// @param useInjection Use restriction by injection, vs
-    /// full-weighting. It defaults to false and should rarely to used.
+    /// full-weighting. It defaults to false and should rarely be used.
     /// @note This constructor will perform a deep copy of the input
     /// grid and use it as the highest level grid.
     MultiResGrid(size_t levels, const Grid<TreeType> &grid, bool useInjection = false);
@@ -122,7 +117,7 @@ public:
     /// @param levels The number of trees in this MultiResGrid
     /// @param grid High-resolution input grid
     /// @param useInjection Use restriction by injection, vs
-    /// full-weighting. It defaults to false and should rarely to used.
+    /// full-weighting. It defaults to false and should rarely be used.
     /// @note This constructor will steal the input input
     /// grid and use it as the highest level grid. On output the grid
     /// is empty.
@@ -851,31 +846,34 @@ struct MultiResGrid<TreeType>::FractionOp
     const TreeType *mTree0, *mTree1;
 };// FractionOp
 
+
 template<typename TreeType>
 template<typename OperatorType>
 struct MultiResGrid<TreeType>::CookOp
 {
-  typedef tree::LeafManager<TreeType>  ManagerT;
-  typedef typename ManagerT::LeafRange RangeT;
-  CookOp(const TreeType& srcTree, TreeType& dstTree, size_t grainSize) : acc( srcTree )
-  {
-      ManagerT leafs( dstTree );
-      tbb::parallel_for( leafs.leafRange( grainSize ), *this );
-  }
-  CookOp(const CookOp &other) : acc( other.acc.tree() ) {}
-  void operator()(const RangeT& range) const
-  {
-      typedef typename RangeT::Iterator LeafIterT;
-      typedef typename ManagerT::LeafNodeType::ValueOnIter VoxelIterT;
-      for (LeafIterT leaf = range.begin(); leaf; ++leaf) {
-          ValueType* phi = leaf.buffer(0).data();// avoids small overhead of out-of-core
-          for (VoxelIterT voxel = leaf->beginValueOn(); voxel; ++voxel) {
-              phi[ voxel.pos() ] = OperatorType::run(voxel.getCoord(), acc);
-          }
-      }
-  }
-  const ConstAccessor acc;
+    typedef tree::LeafManager<TreeType>  ManagerT;
+    typedef typename ManagerT::LeafRange RangeT;
+
+    CookOp(const TreeType& srcTree, TreeType& dstTree, size_t grainSize): acc(srcTree)
+    {
+        ManagerT leafs(dstTree);
+        tbb::parallel_for(leafs.leafRange(grainSize), *this);
+    }
+    CookOp(const CookOp &other): acc(other.acc.tree()) {}
+
+    void operator()(const RangeT& range) const
+    {
+        for (auto leafIt = range.begin(); leafIt; ++leafIt) {
+            auto& phi = leafIt.buffer(0);
+            for (auto voxelIt = leafIt->beginValueOn(); voxelIt; ++voxelIt) {
+                phi.setValue(voxelIt.pos(), OperatorType::run(voxelIt.getCoord(), acc));
+            }
+        }
+    }
+
+    const ConstAccessor acc;
 };// CookOp
+
 
 template<typename TreeType>
 struct MultiResGrid<TreeType>::RestrictOp
@@ -963,6 +961,6 @@ struct MultiResGrid<TreeType>::ProlongateOp
 
 #endif // OPENVDB_TOOLS_MULTIRESGRID_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

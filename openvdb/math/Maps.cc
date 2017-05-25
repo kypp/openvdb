@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -38,8 +38,8 @@ namespace math {
 
 namespace {
 
-typedef tbb::mutex Mutex;
-typedef Mutex::scoped_lock Lock;
+using Mutex = tbb::mutex;
+using Lock = Mutex::scoped_lock;
 
 // Declare this at file scope to ensure thread-safe initialization.
 // NOTE: Do *NOT* move this into Maps.h or else we will need to pull in
@@ -52,14 +52,14 @@ Mutex sInitMapRegistryMutex;
 ////////////////////////////////////////
 
 
-MapRegistry* MapRegistry::mInstance = NULL;
+MapRegistry* MapRegistry::mInstance = nullptr;
 
 
 // Caller is responsible for calling this function serially.
 MapRegistry*
 MapRegistry::staticInstance()
 {
-    if (mInstance == NULL) {
+    if (mInstance == nullptr) {
         OPENVDB_START_THREADSAFE_STATIC_WRITE
             mInstance = new MapRegistry();
         OPENVDB_FINISH_THREADSAFE_STATIC_WRITE
@@ -221,7 +221,7 @@ simplify(AffineMap::Ptr affine)
     }
 
     // could not simplify the general Affine map.
-    return boost::static_pointer_cast<MapBase, AffineMap>(affine);
+    return StaticPtrCast<MapBase, AffineMap>(affine);
 }
 
 
@@ -296,6 +296,6 @@ approxInverse(const Mat4d& mat4d)
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

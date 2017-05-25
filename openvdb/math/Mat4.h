@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -150,11 +150,23 @@ public:
 
     /// Predefined constant for identity matrix
     static const Mat4<T>& identity() {
+        static const Mat4<T> sIdentity = Mat4<T>(
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        );
         return sIdentity;
     }
 
     /// Predefined constant for zero matrix
     static const Mat4<T>& zero() {
+        static const Mat4<T> sZero = Mat4<T>(
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+        );
         return sZero;
     }
 
@@ -1133,23 +1145,8 @@ private:
             a.mm[i0row+j1]*det2(a, i1,i2, j2,j0) +
             a.mm[i0row+j2]*det2(a, i1,i2, j0,j1);
     }
-
-    static const Mat4<T> sIdentity;
-    static const Mat4<T> sZero;
 }; // class Mat4
 
-
-template <typename T>
-const Mat4<T> Mat4<T>::sIdentity = Mat4<T>(1, 0, 0, 0,
-                                           0, 1, 0, 0,
-                                           0, 0, 1, 0,
-                                           0, 0, 0, 1);
-
-template <typename T>
-const Mat4<T> Mat4<T>::sZero = Mat4<T>(0, 0, 0, 0,
-                                       0, 0, 0, 0,
-                                       0, 0, 0, 0,
-                                       0, 0, 0, 0);
 
 /// @relates Mat4
 /// @brief Equality operator, does exact floating point comparisons
@@ -1375,12 +1372,7 @@ inline bool hasTranslation(const Mat4<T>& m) {
 
 typedef Mat4<float>  Mat4s;
 typedef Mat4<double> Mat4d;
-
-#if DWREAL_IS_DOUBLE == 1
-typedef Mat4d    Mat4f;
-#else
-typedef Mat4s    Mat4f;
-#endif // DWREAL_IS_DOUBLE
+typedef Mat4d        Mat4f;
 
 } // namespace math
 
@@ -1393,6 +1385,6 @@ template<> inline math::Mat4d zeroVal<math::Mat4d>() { return math::Mat4d::ident
 
 #endif // OPENVDB_UTIL_MAT4_H_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

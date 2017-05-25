@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -128,11 +128,11 @@ SOP_OpenVDB_Filter::intToOp(int i)
 {
     switch (i) {
 #ifndef SESI_OPENVDB
-        case OP_OFFSET: return OP_OFFSET; break;
+        case OP_OFFSET: return OP_OFFSET;
 #endif
-        case OP_MEAN:   return OP_MEAN; break;
-        case OP_GAUSS:  return OP_GAUSS; break;
-        case OP_MEDIAN: return OP_MEDIAN; break;
+        case OP_MEAN:   return OP_MEAN;
+        case OP_GAUSS:  return OP_GAUSS;
+        case OP_MEDIAN: return OP_MEDIAN;
         case NUM_OPERATIONS: break;
     }
     std::ostringstream ostr;
@@ -161,11 +161,11 @@ SOP_OpenVDB_Filter::opToString(Operation op)
 {
     switch (op) {
 #ifndef SESI_OPENVDB
-        case OP_OFFSET: return "offset"; break;
+        case OP_OFFSET: return "offset";
 #endif
-        case OP_MEAN:   return "mean"; break;
-        case OP_GAUSS:  return "gauss"; break;
-        case OP_MEDIAN: return "median"; break;
+        case OP_MEAN:   return "mean";
+        case OP_GAUSS:  return "gauss";
+        case OP_MEDIAN: return "median";
         case NUM_OPERATIONS: break;
     }
     std::ostringstream ostr;
@@ -179,11 +179,11 @@ SOP_OpenVDB_Filter::opToMenuName(Operation op)
 {
     switch (op) {
 #ifndef SESI_OPENVDB
-        case OP_OFFSET: return "Offset"; break;
+        case OP_OFFSET: return "Offset";
 #endif
-        case OP_MEAN:   return "Mean Value"; break;
-        case OP_GAUSS:  return "Gaussian"; break;
-        case OP_MEDIAN: return "Median Value"; break;
+        case OP_MEAN:   return "Mean Value";
+        case OP_GAUSS:  return "Gaussian";
+        case OP_MEDIAN: return "Median Value";
         case NUM_OPERATIONS: break;
     }
     std::ostringstream ostr;
@@ -590,6 +590,6 @@ SOP_OpenVDB_Filter::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

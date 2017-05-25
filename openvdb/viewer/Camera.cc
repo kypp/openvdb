@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -76,7 +76,7 @@ Camera::Camera()
     , mMouseXPos(0.0)
     , mMouseYPos(0.0)
 #if GLFW_VERSION_MAJOR >= 3
-    , mWindow(NULL)
+    , mWindow(nullptr)
 #endif
 {
 }
@@ -122,7 +122,7 @@ void
 Camera::aim()
 {
 #if GLFW_VERSION_MAJOR >= 3
-    if (mWindow == NULL) return;
+    if (mWindow == nullptr) return;
 #endif
 
     // Get the window size
@@ -145,7 +145,7 @@ Camera::aim()
     glLoadIdentity();
 
     // Window aspect (assumes square pixels)
-    double aspectRatio = (double)width / (double)height;
+    double aspectRatio = double(width) / double(height);
 
     // Set perspective view (fov is in degrees in the y direction.)
     gluPerspective(mFov, aspectRatio, mNearPlane, mFarPlane);
@@ -180,7 +180,7 @@ void
 Camera::keyCallback(int key, int)
 {
 #if GLFW_VERSION_MAJOR >= 3
-    if (mWindow == NULL) return;
+    if (mWindow == nullptr) return;
     int state = glfwGetKey(mWindow, key);
 #else
     int state = glfwGetKey(key);
@@ -274,6 +274,6 @@ Camera::mouseWheelCallback(int pos, int prevPos)
 
 } // namespace openvdb_viewer
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -27,14 +27,14 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-//
+
 /// @file TempFile.h
 
 #ifndef OPENVDB_IO_TEMPFILE_HAS_BEEN_INCLUDED
 #define OPENVDB_IO_TEMPFILE_HAS_BEEN_INCLUDED
 
 #include <openvdb/version.h>
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 #include <ostream>
 
 
@@ -67,7 +67,7 @@ public:
 
 private:
     struct TempFileImpl;
-    boost::scoped_ptr<TempFileImpl> mImpl;
+    std::unique_ptr<TempFileImpl> mImpl;
 };
 
 } // namespace io
@@ -76,6 +76,6 @@ private:
 
 #endif // OPENVDB_IO_TEMPFILE_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

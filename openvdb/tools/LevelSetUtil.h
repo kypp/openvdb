@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -27,14 +27,13 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-//
+
 /// @file tools/LevelSetUtil.h
 ///
 /// @brief  Miscellaneous utility methods that operate primarily
 ///         or exclusively on level set grids.
 ///
 /// @author Mihai Alden
-
 
 #ifndef OPENVDB_TOOLS_LEVEL_SET_UTIL_HAS_BEEN_INCLUDED
 #define OPENVDB_TOOLS_LEVEL_SET_UTIL_HAS_BEEN_INCLUDED
@@ -45,12 +44,11 @@
 #include <openvdb/Types.h>
 #include <openvdb/Grid.h>
 #include <openvdb/tools/LevelSetFracture.h>
-
+#include <boost/scoped_array.hpp>
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
-
 #include <limits>
 
 namespace openvdb {
@@ -140,12 +138,15 @@ sdfInteriorMask(
 ///                     cavity will be ignored.
 template<typename GridOrTreeType>
 inline typename GridOrTreeType::template ValueConverter<bool>::Type::Ptr
-extractEnclosedRegion(const GridOrTreeType& volume,
+extractEnclosedRegion(
+    const GridOrTreeType& volume,
     typename GridOrTreeType::ValueType isovalue = lsutilGridZero<GridOrTreeType>(),
-    const typename TreeAdapter<GridOrTreeType>::TreeType::template ValueConverter<bool>::Type* fillMask = NULL);
+    const typename TreeAdapter<GridOrTreeType>::TreeType::template ValueConverter<bool>::Type*
+        fillMask = nullptr);
 
 
-/// @brief Return a mask of the voxels that intersect the implicit surface with the given @a isovalue.
+/// @brief Return a mask of the voxels that intersect the implicit surface with
+/// the given @a isovalue.
 ///
 /// @param volume       Signed distance field / level set volume.
 /// @param isovalue     The crossing point that is considered the surface.
@@ -174,7 +175,8 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
 ///                     descending order based on the active voxel count.
 template<typename GridOrTreeType>
 inline void
-segmentActiveVoxels(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Ptr>& segments);
+segmentActiveVoxels(const GridOrTreeType& volume,
+    std::vector<typename GridOrTreeType::Ptr>& segments);
 
 
 /// @brief  Separates disjoint SDF surfaces into distinct grids or trees.
@@ -202,8 +204,8 @@ namespace level_set_util_internal {
 template<typename LeafNodeType>
 struct MaskInteriorVoxels {
 
-    typedef typename LeafNodeType::ValueType                ValueType;
-    typedef tree::LeafNode<bool, LeafNodeType::LOG2DIM>     BoolLeafNodeType;
+    using ValueType = typename LeafNodeType::ValueType;
+    using BoolLeafNodeType = tree::LeafNode<bool, LeafNodeType::LOG2DIM>;
 
     MaskInteriorVoxels(
         ValueType isovalue, const LeafNodeType ** nodes, BoolLeafNodeType ** maskNodes)
@@ -213,11 +215,11 @@ struct MaskInteriorVoxels {
 
     void operator()(const tbb::blocked_range<size_t>& range) const {
 
-        BoolLeafNodeType * maskNodePt = NULL;
+        BoolLeafNodeType * maskNodePt = nullptr;
 
         for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
 
-            mMaskNodes[n] = NULL;
+            mMaskNodes[n] = nullptr;
             const LeafNodeType& node = *mNodes[n];
 
             if (!maskNodePt) {
@@ -233,7 +235,7 @@ struct MaskInteriorVoxels {
 
             if (maskNodePt->onVoxelCount() > 0) {
                 mMaskNodes[n] = maskNodePt;
-                maskNodePt = NULL;
+                maskNodePt = nullptr;
             }
         }
 
@@ -249,7 +251,7 @@ struct MaskInteriorVoxels {
 template<typename TreeType, typename InternalNodeType>
 struct MaskInteriorTiles {
 
-    typedef typename TreeType::ValueType    ValueType;
+    using ValueType = typename TreeType::ValueType;
 
     MaskInteriorTiles(ValueType isovalue, const TreeType& tree, InternalNodeType ** maskNodes)
         : mTree(&tree), mMaskNodes(maskNodes), mIsovalue(isovalue) { }
@@ -276,8 +278,8 @@ struct MaskInteriorTiles {
 template<typename TreeType>
 struct PopulateTree {
 
-    typedef typename TreeType::ValueType    ValueType;
-    typedef typename TreeType::LeafNodeType LeafNodeType;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
 
     PopulateTree(TreeType& tree, LeafNodeType** leafnodes,
         const size_t * nodexIndexMap, ValueType background)
@@ -303,7 +305,7 @@ struct PopulateTree {
         if (mNodeIndexMap) {
             for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
                 for (size_t i = mNodeIndexMap[n], I = mNodeIndexMap[n + 1]; i < I; ++i) {
-                    if (mNodes[i] != NULL) acc.addLeaf(mNodes[i]);
+                    if (mNodes[i] != nullptr) acc.addLeaf(mNodes[i]);
                 }
             }
         } else {
@@ -372,8 +374,8 @@ private:
 template<typename LeafNodeType>
 struct LabelBoundaryVoxels {
 
-    typedef typename LeafNodeType::ValueType                ValueType;
-    typedef tree::LeafNode<char, LeafNodeType::LOG2DIM>     CharLeafNodeType;
+    using ValueType = typename LeafNodeType::ValueType;
+    using CharLeafNodeType = tree::LeafNode<char, LeafNodeType::LOG2DIM>;
 
     LabelBoundaryVoxels(
         ValueType isovalue, const LeafNodeType ** nodes, CharLeafNodeType ** maskNodes)
@@ -383,11 +385,11 @@ struct LabelBoundaryVoxels {
 
     void operator()(const tbb::blocked_range<size_t>& range) const {
 
-        CharLeafNodeType * maskNodePt = NULL;
+        CharLeafNodeType * maskNodePt = nullptr;
 
         for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
 
-            mMaskNodes[n] = NULL;
+            mMaskNodes[n] = nullptr;
             const LeafNodeType& node = *mNodes[n];
 
             if (!maskNodePt) {
@@ -403,7 +405,7 @@ struct LabelBoundaryVoxels {
 
             if (maskNodePt->onVoxelCount() > 0) {
                 mMaskNodes[n] = maskNodePt;
-                maskNodePt = NULL;
+                maskNodePt = nullptr;
             }
         }
 
@@ -418,7 +420,7 @@ struct LabelBoundaryVoxels {
 
 template<typename LeafNodeType>
 struct FlipRegionSign {
-    typedef typename LeafNodeType::ValueType ValueType;
+    using ValueType = typename LeafNodeType::ValueType;
 
     FlipRegionSign(LeafNodeType ** nodes) : mNodes(nodes) { }
 
@@ -438,7 +440,7 @@ struct FlipRegionSign {
 template<typename LeafNodeType>
 struct FindMinVoxelValue {
 
-    typedef typename LeafNodeType::ValueType    ValueType;
+    using ValueType = typename LeafNodeType::ValueType;
 
     FindMinVoxelValue(LeafNodeType const * const * const leafnodes)
         : minValue(std::numeric_limits<ValueType>::max())
@@ -472,7 +474,7 @@ struct FindMinVoxelValue {
 template<typename InternalNodeType>
 struct FindMinTileValue {
 
-    typedef typename InternalNodeType::ValueType    ValueType;
+    using ValueType = typename InternalNodeType::ValueType;
 
     FindMinTileValue(InternalNodeType const * const * const nodes)
         : minValue(std::numeric_limits<ValueType>::max())
@@ -506,7 +508,7 @@ struct FindMinTileValue {
 template<typename LeafNodeType>
 struct SDFVoxelsToFogVolume {
 
-    typedef typename LeafNodeType::ValueType ValueType;
+    using ValueType = typename LeafNodeType::ValueType;
 
     SDFVoxelsToFogVolume(LeafNodeType ** nodes, ValueType cutoffDistance)
         : mNodes(nodes), mWeight(ValueType(1.0) / cutoffDistance)
@@ -528,7 +530,7 @@ struct SDFVoxelsToFogVolume {
 
             if (node.onVoxelCount() == 0) {
                 delete mNodes[n];
-                mNodes[n] = NULL;
+                mNodes[n] = nullptr;
             }
         }
     }
@@ -546,7 +548,7 @@ struct SDFTilesToFogVolume {
 
     void operator()(const tbb::blocked_range<size_t>& range) const {
 
-        typedef typename TreeType::ValueType ValueType;
+        using ValueType = typename TreeType::ValueType;
         tree::ValueAccessor<const TreeType> acc(*mTree);
 
         for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
@@ -568,14 +570,18 @@ struct SDFTilesToFogVolume {
 template<typename TreeType>
 struct FillMaskBoundary {
 
-    typedef typename TreeType::ValueType                            ValueType;
-    typedef typename TreeType::LeafNodeType                         LeafNodeType;
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
     FillMaskBoundary(const TreeType& tree, ValueType isovalue, const BoolTreeType& fillMask,
         const BoolLeafNodeType ** fillNodes, BoolLeafNodeType ** newNodes)
-        : mTree(&tree), mFillMask(&fillMask), mFillNodes(fillNodes), mNewNodes(newNodes), mIsovalue(isovalue)
+        : mTree(&tree)
+        , mFillMask(&fillMask)
+        , mFillNodes(fillNodes)
+        , mNewNodes(newNodes)
+        , mIsovalue(isovalue)
     {
     }
 
@@ -588,7 +594,7 @@ struct FillMaskBoundary {
 
         for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
 
-            mNewNodes[n] = NULL;
+            mNewNodes[n] = nullptr;
             const BoolLeafNodeType& node = *mFillNodes[n];
             const Coord& origin = node.origin();
 
@@ -599,7 +605,8 @@ struct FillMaskBoundary {
 
                 int denseNeighbors = 0;
 
-                const BoolLeafNodeType* neighborNode = maskAcc.probeConstLeaf(origin.offsetBy(-1, 0, 0));
+                const BoolLeafNodeType* neighborNode =
+                    maskAcc.probeConstLeaf(origin.offsetBy(-1, 0, 0));
                 if (neighborNode && neighborNode->isDense()) ++denseNeighbors;
 
                 neighborNode = maskAcc.probeConstLeaf(origin.offsetBy(BoolLeafNodeType::DIM, 0, 0));
@@ -635,7 +642,9 @@ struct FillMaskBoundary {
                     evalInternalNeighborsN(valueMask.get(), node, *distNode);
                 } else if (distAcc.getValue(origin) > mIsovalue) {
                     earlyTermination = evalInternalNeighborsP(valueMask.get(), node);
-                    if (!earlyTermination) earlyTermination = evalInternalNeighborsN(valueMask.get(), node);
+                    if (!earlyTermination) {
+                        earlyTermination = evalInternalNeighborsN(valueMask.get(), node);
+                    }
                 }
             }
 
@@ -667,11 +676,10 @@ struct FillMaskBoundary {
     }
 
 private:
-
     // Check internal voxel neighbors in positive {x, y, z} directions.
-
-    void evalInternalNeighborsP(char* valueMask, const BoolLeafNodeType& node, const LeafNodeType& distNode) const {
-
+    void evalInternalNeighborsP(char* valueMask, const BoolLeafNodeType& node,
+        const LeafNodeType& distNode) const
+    {
         for (Index x = 0; x < BoolLeafNodeType::DIM; ++x) {
             const Index xPos = x << (2 * BoolLeafNodeType::LOG2DIM);
             for (Index y = 0; y < BoolLeafNodeType::DIM; ++y) {
@@ -715,7 +723,9 @@ private:
                     if (valueMask[pos] != 0 || !node.isValueOn(pos)) continue;
 
                     if (!node.isValueOn(pos + BoolLeafNodeType::DIM * BoolLeafNodeType::DIM) &&
-                        distNode.getValue(pos + BoolLeafNodeType::DIM * BoolLeafNodeType::DIM)  > mIsovalue) {
+                        (distNode.getValue(pos + BoolLeafNodeType::DIM * BoolLeafNodeType::DIM)
+                             > mIsovalue))
+                    {
                         valueMask[pos] = 1;
                     }
                 }
@@ -776,8 +786,9 @@ private:
 
     // Check internal voxel neighbors in negative {x, y, z} directions.
 
-    void evalInternalNeighborsN(char* valueMask, const BoolLeafNodeType& node, const LeafNodeType& distNode) const {
-
+    void evalInternalNeighborsN(char* valueMask, const BoolLeafNodeType& node,
+        const LeafNodeType& distNode) const
+    {
         for (Index x = 0; x < BoolLeafNodeType::DIM; ++x) {
             const Index xPos = x << (2 * BoolLeafNodeType::LOG2DIM);
             for (Index y = 0; y < BoolLeafNodeType::DIM; ++y) {
@@ -821,7 +832,9 @@ private:
                     if (valueMask[pos] != 0 || !node.isValueOn(pos)) continue;
 
                     if (!node.isValueOn(pos - BoolLeafNodeType::DIM * BoolLeafNodeType::DIM) &&
-                        distNode.getValue(pos - BoolLeafNodeType::DIM * BoolLeafNodeType::DIM)  > mIsovalue) {
+                        (distNode.getValue(pos - BoolLeafNodeType::DIM * BoolLeafNodeType::DIM)
+                             > mIsovalue))
+                    {
                         valueMask[pos] = 1;
                     }
                 }
@@ -1002,20 +1015,16 @@ inline typename TreeType::template ValueConverter<char>::Type::Ptr
 computeEnclosedRegionMask(const TreeType& tree, typename TreeType::ValueType isovalue,
     const typename TreeType::template ValueConverter<bool>::Type* fillMask)
 {
-    typedef typename TreeType::LeafNodeType                                         LeafNodeType;
-    typedef typename TreeType::RootNodeType                                         RootNodeType;
-    typedef typename RootNodeType::NodeChainType                                    NodeChainType;
-    typedef typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type      InternalNodeType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using RootNodeType = typename TreeType::RootNodeType;
+    using NodeChainType = typename RootNodeType::NodeChainType;
+    using InternalNodeType = typename boost::mpl::at<NodeChainType, boost::mpl::int_<1>>::type;
 
-    typedef typename TreeType::template ValueConverter<char>::Type                  CharTreeType;
-    typedef typename CharTreeType::LeafNodeType                                     CharLeafNodeType;
-    typedef typename CharTreeType::RootNodeType                                     CharRootNodeType;
-    typedef typename CharRootNodeType::NodeChainType                                CharNodeChainType;
+    using CharTreeType = typename TreeType::template ValueConverter<char>::Type;
+    using CharLeafNodeType = typename CharTreeType::LeafNodeType;
 
-    typedef typename TreeType::template ValueConverter<bool>::Type                  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                                     BoolLeafNodeType;
-
-    /////
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
     const TreeType* treePt = &tree;
 
@@ -1067,16 +1076,18 @@ computeEnclosedRegionMask(const TreeType& tree, typename TreeType::ValueType iso
         std::vector<const BoolLeafNodeType*> fillMaskNodes;
         fillMask->getNodes(fillMaskNodes);
 
-        boost::scoped_array<BoolLeafNodeType*> boundaryMaskNodes(new BoolLeafNodeType*[fillMaskNodes.size()]);
+        boost::scoped_array<BoolLeafNodeType*> boundaryMaskNodes(
+            new BoolLeafNodeType*[fillMaskNodes.size()]);
 
         tbb::parallel_for(tbb::blocked_range<size_t>(0, fillMaskNodes.size()),
-            FillMaskBoundary<TreeType>(tree, isovalue, *fillMask, &fillMaskNodes[0], boundaryMaskNodes.get()));
+            FillMaskBoundary<TreeType>(tree, isovalue, *fillMask, &fillMaskNodes[0],
+                boundaryMaskNodes.get()));
 
         tree::ValueAccessor<CharTreeType> maskAcc(*maskTree);
 
         for (size_t n = 0, N = fillMaskNodes.size(); n < N; ++n) {
 
-            if (boundaryMaskNodes[n] == NULL) continue;
+            if (boundaryMaskNodes[n] == nullptr) continue;
 
             const BoolLeafNodeType& boundaryNode = *boundaryMaskNodes[n];
             const Coord& origin = boundaryNode.origin();
@@ -1122,18 +1133,29 @@ template <class TreeType>
 inline typename TreeType::template ValueConverter<bool>::Type::Ptr
 computeInteriorMask(const TreeType& tree, typename TreeType::ValueType iso)
 {
-    typedef typename TreeType::LeafNodeType                                         LeafNodeType;
-    typedef typename TreeType::RootNodeType                                         RootNodeType;
-    typedef typename RootNodeType::NodeChainType                                    NodeChainType;
-    typedef typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type      InternalNodeType;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using RootNodeType = typename TreeType::RootNodeType;
+    using NodeChainType = typename RootNodeType::NodeChainType;
+    using InternalNodeType = typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type;
 
-    typedef typename TreeType::template ValueConverter<bool>::Type                  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                                     BoolLeafNodeType;
-    typedef typename BoolTreeType::RootNodeType                                     BoolRootNodeType;
-    typedef typename BoolRootNodeType::NodeChainType                                BoolNodeChainType;
-    typedef typename boost::mpl::at<BoolNodeChainType, boost::mpl::int_<1> >::type  BoolInternalNodeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
+    using BoolRootNodeType = typename BoolTreeType::RootNodeType;
+    using BoolNodeChainType = typename BoolRootNodeType::NodeChainType;
+    using BoolInternalNodeType =
+        typename boost::mpl::at<BoolNodeChainType, boost::mpl::int_<1>>::type;
 
     /////
+
+    // Clamp the isovalue to the level set's background value minus epsilon.
+    // (In a valid narrow-band level set, all voxels, including background voxels,
+    // have values less than or equal to the background value, so an isovalue
+    // greater than or equal to the background value would produce a mask with
+    // effectively infinite extent.)
+    iso = std::min(iso,
+        static_cast<ValueType>(tree.background() - math::Tolerance<ValueType>::value()));
+
     size_t numLeafNodes = 0, numInternalNodes = 0;
 
     std::vector<const LeafNodeType*> nodes;
@@ -1201,10 +1223,10 @@ computeInteriorMask(const TreeType& tree, typename TreeType::ValueType iso)
 template<typename InputTreeType>
 struct MaskIsovalueCrossingVoxels
 {
-    typedef typename InputTreeType::ValueType                               InputValueType;
-    typedef typename InputTreeType::LeafNodeType                            InputLeafNodeType;
-    typedef typename InputTreeType::template ValueConverter<bool>::Type     BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                             BoolLeafNodeType;
+    using InputValueType = typename InputTreeType::ValueType;
+    using InputLeafNodeType = typename InputTreeType::LeafNodeType;
+    using BoolTreeType = typename InputTreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
     MaskIsovalueCrossingVoxels(
         const InputTreeType& inputTree,
@@ -1212,7 +1234,7 @@ struct MaskIsovalueCrossingVoxels
         BoolTreeType& maskTree,
         InputValueType iso)
         : mInputAccessor(inputTree)
-        , mInputNodes(!inputLeafNodes.empty() ? &inputLeafNodes.front() : NULL)
+        , mInputNodes(!inputLeafNodes.empty() ? &inputLeafNodes.front() : nullptr)
         , mMaskTree(false)
         , mMaskAccessor(maskTree)
         , mIsovalue(iso)
@@ -1233,7 +1255,7 @@ struct MaskIsovalueCrossingVoxels
         const InputValueType iso = mIsovalue;
         Coord ijk(0, 0, 0);
 
-        BoolLeafNodeType* maskNodePt = NULL;
+        BoolLeafNodeType* maskNodePt = nullptr;
 
         for (size_t n = range.begin(); mInputNodes && (n != range.end()); ++n) {
 
@@ -1292,7 +1314,7 @@ struct MaskIsovalueCrossingVoxels
 
             if (collectedData) {
                 mMaskAccessor.addLeaf(maskNodePt);
-                maskNodePt = NULL;
+                maskNodePt = nullptr;
             }
         }
 
@@ -1320,8 +1342,8 @@ private:
 template<typename NodeType>
 struct NodeMaskSegment
 {
-    typedef boost::shared_ptr<NodeMaskSegment>  Ptr;
-    typedef typename NodeType::NodeMaskType     NodeMaskType;
+    using Ptr = SharedPtr<NodeMaskSegment>;
+    using NodeMaskType = typename NodeType::NodeMaskType;
 
     NodeMaskSegment() : connections(), mask(false), origin(0,0,0), visited(false) {}
 
@@ -1337,9 +1359,9 @@ inline void
 nodeMaskSegmentation(const NodeType& node,
     std::vector<typename NodeMaskSegment<NodeType>::Ptr>& segments)
 {
-    typedef typename NodeType::NodeMaskType     NodeMaskType;
-    typedef NodeMaskSegment<NodeType>           NodeMaskSegmentType;
-    typedef typename NodeMaskSegmentType::Ptr   NodeMaskSegmentTypePtr;
+    using NodeMaskType = typename NodeType::NodeMaskType;
+    using NodeMaskSegmentType = NodeMaskSegment<NodeType>;
+    using NodeMaskSegmentTypePtr = typename NodeMaskSegmentType::Ptr;
 
     NodeMaskType nodeMask(node.getValueMask());
     std::deque<Index> indexList;
@@ -1411,12 +1433,12 @@ nodeMaskSegmentation(const NodeType& node,
 template<typename NodeType>
 struct SegmentNodeMask
 {
-    typedef NodeMaskSegment<NodeType>                       NodeMaskSegmentType;
-    typedef typename NodeMaskSegmentType::Ptr               NodeMaskSegmentTypePtr;
-    typedef typename std::vector<NodeMaskSegmentTypePtr>    NodeMaskSegmentVector;
+    using NodeMaskSegmentType = NodeMaskSegment<NodeType>;
+    using NodeMaskSegmentTypePtr = typename NodeMaskSegmentType::Ptr;
+    using NodeMaskSegmentVector = typename std::vector<NodeMaskSegmentTypePtr>;
 
     SegmentNodeMask(std::vector<NodeType*>& nodes, NodeMaskSegmentVector* nodeMaskArray)
-        : mNodes(!nodes.empty() ? &nodes.front() : NULL)
+        : mNodes(!nodes.empty() ? &nodes.front() : nullptr)
         , mNodeMaskArray(nodeMaskArray)
     {
     }
@@ -1440,10 +1462,10 @@ struct SegmentNodeMask
 template<typename TreeType, typename NodeType>
 struct ConnectNodeMaskSegments
 {
-    typedef typename NodeType::NodeMaskType                 NodeMaskType;
-    typedef NodeMaskSegment<NodeType>                       NodeMaskSegmentType;
-    typedef typename NodeMaskSegmentType::Ptr               NodeMaskSegmentTypePtr;
-    typedef typename std::vector<NodeMaskSegmentTypePtr>    NodeMaskSegmentVector;
+    using NodeMaskType = typename NodeType::NodeMaskType;
+    using NodeMaskSegmentType = NodeMaskSegment<NodeType>;
+    using NodeMaskSegmentTypePtr = typename NodeMaskSegmentType::Ptr;
+    using NodeMaskSegmentVector = typename std::vector<NodeMaskSegmentTypePtr>;
 
     ConnectNodeMaskSegments(const TreeType& tree, NodeMaskSegmentVector* nodeMaskArray)
         : mTree(&tree)
@@ -1493,7 +1515,17 @@ struct ConnectNodeMaskSegments
                 if (!node->isValueOn(pos)) continue;
 
                 ijk = NodeType::offsetToLocalCoord(pos);
+
+#ifdef _MSC_FULL_VER
+  #if _MSC_FULL_VER >= 190000000 && _MSC_FULL_VER < 190024210
+                // Visual Studio 2015 had a codegen bug that wasn't fixed until Update 3
+                volatile Index npos = 0;
+  #else
                 Index npos = 0;
+  #endif
+#else
+                Index npos = 0;
+#endif
 
                 if (ijk[2] == 0) {
                     npos = pos + (NodeType::DIM - 1);
@@ -1573,7 +1605,7 @@ private:
     static inline NodeMaskSegmentType*
     findNodeMaskSegment(NodeMaskSegmentVector& segments, Index pos)
     {
-        NodeMaskSegmentType* segment = NULL;
+        NodeMaskSegmentType* segment = nullptr;
 
         for (size_t n = 0, N = segments.size(); n < N; ++n) {
             if (segments[n]->mask.isOn(pos)) {
@@ -1602,12 +1634,12 @@ private:
 template<typename TreeType>
 struct MaskSegmentGroup
 {
-    typedef typename TreeType::LeafNodeType     LeafNodeType;
-    typedef typename TreeType::Ptr              TreeTypePtr;
-    typedef NodeMaskSegment<LeafNodeType>       NodeMaskSegmentType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using TreeTypePtr = typename TreeType::Ptr;
+    using NodeMaskSegmentType = NodeMaskSegment<LeafNodeType>;
 
     MaskSegmentGroup(const std::vector<NodeMaskSegmentType*>& segments)
-        : mSegments(!segments.empty() ? &segments.front() : NULL)
+        : mSegments(!segments.empty() ? &segments.front() : nullptr)
         , mTree(new TreeType(false))
     {
     }
@@ -1645,19 +1677,20 @@ private:
 template<typename TreeType>
 struct ExpandLeafNodeRegion
 {
-    typedef typename TreeType::ValueType                            ValueType;
-    typedef typename TreeType::LeafNodeType                         LeafNodeType;
-    typedef typename LeafNodeType::NodeMaskType                     NodeMaskType;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using NodeMaskType = typename LeafNodeType::NodeMaskType;
 
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
     /////
 
-    ExpandLeafNodeRegion(const TreeType& distTree, BoolTreeType& maskTree, std::vector<BoolLeafNodeType*>& maskNodes)
+    ExpandLeafNodeRegion(const TreeType& distTree, BoolTreeType& maskTree,
+        std::vector<BoolLeafNodeType*>& maskNodes)
         : mDistTree(&distTree)
         , mMaskTree(&maskTree)
-        , mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : NULL)
+        , mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : nullptr)
         , mNewMaskTree(false)
     {
     }
@@ -1676,7 +1709,7 @@ struct ExpandLeafNodeRegion
 
     void operator()(const tbb::blocked_range<size_t>& range) {
 
-        typedef LeafNodeType    NodeType;
+        using NodeType = LeafNodeType;
 
         tree::ValueAccessor<const TreeType>         distAcc(*mDistTree);
         tree::ValueAccessor<const BoolTreeType>     maskAcc(*mMaskTree);
@@ -1694,9 +1727,9 @@ struct ExpandLeafNodeRegion
             const LeafNodeType* distNode = distAcc.probeConstLeaf(ijk);
             if (!distNode) continue;
 
-            const ValueType *dataZUp = NULL, *dataZDown = NULL,
-                            *dataYUp = NULL, *dataYDown = NULL,
-                            *dataXUp = NULL, *dataXDown = NULL;
+            const ValueType *dataZUp = nullptr, *dataZDown = nullptr,
+                            *dataYUp = nullptr, *dataYDown = nullptr,
+                            *dataXUp = nullptr, *dataXDown = nullptr;
 
             ijk[2] += NodeType::DIM;
             getData(ijk, distAcc, maskAcc, maskZUp, dataZUp);
@@ -1768,7 +1801,8 @@ private:
 
     static inline void
     getData(const Coord& ijk, tree::ValueAccessor<const TreeType>& distAcc,
-        tree::ValueAccessor<const BoolTreeType>& maskAcc, NodeMaskType& mask, const ValueType*& data)
+        tree::ValueAccessor<const BoolTreeType>& maskAcc, NodeMaskType& mask,
+        const ValueType*& data)
     {
         const LeafNodeType* node = distAcc.probeConstLeaf(ijk);
         if (node) {
@@ -1790,13 +1824,13 @@ private:
 template<typename TreeType>
 struct FillLeafNodeVoxels
 {
-    typedef typename TreeType::ValueType                    ValueType;
-    typedef typename TreeType::LeafNodeType                 LeafNodeType;
-    typedef typename LeafNodeType::NodeMaskType             NodeMaskType;
-    typedef tree::LeafNode<bool, LeafNodeType::LOG2DIM>     BoolLeafNodeType;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using NodeMaskType = typename LeafNodeType::NodeMaskType;
+    using BoolLeafNodeType = tree::LeafNode<bool, LeafNodeType::LOG2DIM>;
 
     FillLeafNodeVoxels(const TreeType& tree, std::vector<BoolLeafNodeType*>& maskNodes)
-        : mTree(&tree), mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : NULL)
+        : mTree(&tree), mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : nullptr)
     {
     }
 
@@ -1846,7 +1880,9 @@ struct FillLeafNodeVoxels
                 }
 
                 npos = pos + 1;
-                if (ijk[2] != (LeafNodeType::DIM - 1) && mask.isOn(npos) && std::abs(data[npos]) > dist) {
+                if ((ijk[2] != (LeafNodeType::DIM - 1)) && mask.isOn(npos)
+                    && std::abs(data[npos]) > dist)
+                {
                     mask.setOff(npos);
                     indexList.push_back(npos);
                 }
@@ -1858,7 +1894,9 @@ struct FillLeafNodeVoxels
                 }
 
                 npos = pos + LeafNodeType::DIM;
-                if (ijk[1] != (LeafNodeType::DIM - 1) && mask.isOn(npos) && std::abs(data[npos]) > dist) {
+                if ((ijk[1] != (LeafNodeType::DIM - 1)) && mask.isOn(npos)
+                    && std::abs(data[npos]) > dist)
+                {
                     mask.setOff(npos);
                     indexList.push_back(npos);
                 }
@@ -1870,7 +1908,9 @@ struct FillLeafNodeVoxels
                 }
 
                 npos = pos + LeafNodeType::DIM * LeafNodeType::DIM;
-                if (ijk[0] != (LeafNodeType::DIM - 1) && mask.isOn(npos) && std::abs(data[npos]) > dist) {
+                if ((ijk[0] != (LeafNodeType::DIM - 1)) && mask.isOn(npos)
+                    && std::abs(data[npos]) > dist)
+                {
                     mask.setOff(npos);
                     indexList.push_back(npos);
                 }
@@ -1886,12 +1926,12 @@ struct FillLeafNodeVoxels
 template<typename TreeType>
 struct ExpandNarrowbandMask
 {
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
-    typedef typename BoolTreeType::Ptr                              BoolTreeTypePtr;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
+    using BoolTreeTypePtr = typename BoolTreeType::Ptr;
 
     ExpandNarrowbandMask(const TreeType& tree, std::vector<BoolTreeTypePtr>& segments)
-        : mTree(&tree), mSegments(!segments.empty() ? &segments.front() : NULL)
+        : mTree(&tree), mSegments(!segments.empty() ? &segments.front() : nullptr)
     {
     }
 
@@ -1937,16 +1977,16 @@ struct ExpandNarrowbandMask
 template<typename TreeType>
 struct FloodFillSign
 {
-    typedef typename TreeType::Ptr                                              TreeTypePtr;
-    typedef typename TreeType::ValueType                                        ValueType;
-    typedef typename TreeType::LeafNodeType                                     LeafNodeType;
-    typedef typename TreeType::RootNodeType                                     RootNodeType;
-    typedef typename RootNodeType::NodeChainType                                NodeChainType;
-    typedef typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type  InternalNodeType;
+    using TreeTypePtr = typename TreeType::Ptr;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using RootNodeType = typename TreeType::RootNodeType;
+    using NodeChainType = typename RootNodeType::NodeChainType;
+    using InternalNodeType = typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type;
 
     FloodFillSign(const TreeType& tree, std::vector<TreeTypePtr>& segments)
         : mTree(&tree)
-        , mSegments(!segments.empty() ? &segments.front() : NULL)
+        , mSegments(!segments.empty() ? &segments.front() : nullptr)
         , mMinValue(ValueType(0.0))
     {
         ValueType minSDFValue = std::numeric_limits<ValueType>::max();
@@ -1994,18 +2034,19 @@ private:
 template<typename TreeType>
 struct MaskedCopy
 {
-    typedef typename TreeType::Ptr                                  TreeTypePtr;
-    typedef typename TreeType::ValueType                            ValueType;
-    typedef typename TreeType::LeafNodeType                         LeafNodeType;
+    using TreeTypePtr = typename TreeType::Ptr;
+    using ValueType = typename TreeType::ValueType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
 
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::Ptr                              BoolTreeTypePtr;
-    typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolTreeTypePtr = typename BoolTreeType::Ptr;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
-    MaskedCopy(const TreeType& tree, std::vector<TreeTypePtr>& segments, std::vector<BoolTreeTypePtr>& masks)
+    MaskedCopy(const TreeType& tree, std::vector<TreeTypePtr>& segments,
+        std::vector<BoolTreeTypePtr>& masks)
         : mTree(&tree)
-        , mSegments(!segments.empty() ? &segments.front() : NULL)
-        , mMasks(!masks.empty() ? &masks.front() : NULL)
+        , mSegments(!segments.empty() ? &segments.front() : nullptr)
+        , mMasks(!masks.empty() ? &masks.front() : nullptr)
     {
     }
 
@@ -2031,7 +2072,7 @@ private:
     struct Copy {
         Copy(const TreeType& inputTree, std::vector<const BoolLeafNodeType*>& maskNodes)
             : mInputTree(&inputTree)
-            , mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : NULL)
+            , mMaskNodes(!maskNodes.empty() ? &maskNodes.front() : nullptr)
             , mOutputTreePtr(new TreeType(inputTree.background()))
         {
         }
@@ -2064,7 +2105,9 @@ private:
 
                     LeafNodeType* outputNode = outputAcc.touchLeaf(ijk);
 
-                    for (typename BoolLeafNodeType::ValueOnCIter it = maskNode.cbeginValueOn(); it; ++it) {
+                    for (typename BoolLeafNodeType::ValueOnCIter it = maskNode.cbeginValueOn();
+                        it; ++it)
+                    {
                         const Index idx = it.pos();
                         outputNode->setValueOn(idx, inputNode->getValue(idx));
                     }
@@ -2097,7 +2140,7 @@ template<typename VolumePtrType>
 struct ComputeActiveVoxelCount
 {
     ComputeActiveVoxelCount(std::vector<VolumePtrType>& segments, size_t *countArray)
-        : mSegments(!segments.empty() ? &segments.front() : NULL)
+        : mSegments(!segments.empty() ? &segments.front() : nullptr)
         , mCountArray(countArray)
     {
     }
@@ -2131,10 +2174,11 @@ struct GreaterCount
 template<typename TreeType>
 struct GridOrTreeConstructor
 {
-    typedef typename TreeType::Ptr TreeTypePtr;
-    typedef typename TreeType::template ValueConverter<bool>::Type::Ptr BoolTreePtrType;
+    using TreeTypePtr = typename TreeType::Ptr;
+    using BoolTreePtrType = typename TreeType::template ValueConverter<bool>::Type::Ptr;
 
-    static BoolTreePtrType constructMask(const TreeType&, BoolTreePtrType& maskTree) { return maskTree; }
+    static BoolTreePtrType constructMask(const TreeType&, BoolTreePtrType& maskTree)
+        { return maskTree; }
     static TreeTypePtr construct(const TreeType&, TreeTypePtr& tree) { return tree; }
 };
 
@@ -2142,14 +2186,14 @@ struct GridOrTreeConstructor
 template<typename TreeType>
 struct GridOrTreeConstructor<Grid<TreeType> >
 {
-    typedef Grid<TreeType>                                          GridType;
-    typedef typename Grid<TreeType>::Ptr                             GridTypePtr;
-    typedef typename TreeType::Ptr TreeTypePtr;
+    using GridType = Grid<TreeType>;
+    using GridTypePtr = typename Grid<TreeType>::Ptr;
+    using TreeTypePtr = typename TreeType::Ptr;
 
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::Ptr                              BoolTreePtrType;
-    typedef Grid<BoolTreeType>                                      BoolGridType;
-    typedef typename BoolGridType::Ptr                              BoolGridPtrType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolTreePtrType = typename BoolTreeType::Ptr;
+    using BoolGridType = Grid<BoolTreeType>;
+    using BoolGridPtrType = typename BoolGridType::Ptr;
 
     static BoolGridPtrType constructMask(const GridType& grid, BoolTreePtrType& maskTree) {
         BoolGridPtrType maskGrid(BoolGridType::create(maskTree));
@@ -2176,12 +2220,12 @@ template <class GridType>
 inline void
 sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
 {
-    typedef typename GridType::ValueType                                            ValueType;
-    typedef typename GridType::TreeType                                             TreeType;
-    typedef typename TreeType::LeafNodeType                                         LeafNodeType;
-    typedef typename TreeType::RootNodeType                                         RootNodeType;
-    typedef typename RootNodeType::NodeChainType                                    NodeChainType;
-    typedef typename boost::mpl::at<NodeChainType, boost::mpl::int_<1> >::type      InternalNodeType;
+    using ValueType = typename GridType::ValueType;
+    using TreeType = typename GridType::TreeType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using RootNodeType = typename TreeType::RootNodeType;
+    using NodeChainType = typename RootNodeType::NodeChainType;
+    using InternalNodeType = typename boost::mpl::at<NodeChainType, boost::mpl::int_<1>>::type;
 
     //////////
 
@@ -2241,7 +2285,8 @@ sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
     // Populate a new tree with the remaining leafnodes
     typename TreeType::Ptr newTree(new TreeType(ValueType(0.0)));
 
-    level_set_util_internal::PopulateTree<TreeType> populate(*newTree, &nodes[0], &leafnodeCount[0], 0);
+    level_set_util_internal::PopulateTree<TreeType> populate(
+        *newTree, &nodes[0], &leafnodeCount[0], 0);
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, numInternalNodes), populate);
 
     // Transform tile values (Negative valued tiles are set to 1.0 with active state.)
@@ -2249,7 +2294,8 @@ sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
     newTree->getNodes(internalNodes);
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, internalNodes.size()),
-        level_set_util_internal::SDFTilesToFogVolume<TreeType, InternalNodeType>(tree, &internalNodes[0]));
+        level_set_util_internal::SDFTilesToFogVolume<TreeType, InternalNodeType>(
+            tree, &internalNodes[0]));
 
     {
         tree::ValueAccessor<const TreeType> acc(tree);
@@ -2272,7 +2318,8 @@ sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
         it.setMaxDepth(TreeType::ValueAllIter::ROOT_DEPTH);
         for ( ; it; ++it) {
             if (it.getValue() <  ValueType(0.0)) {
-                newTree->addTile(TreeType::ValueAllIter::ROOT_LEVEL, it.getCoord(), ValueType(1.0), true);
+                newTree->addTile(TreeType::ValueAllIter::ROOT_LEVEL, it.getCoord(),
+                    ValueType(1.0), true);
             }
         }
     }
@@ -2362,13 +2409,14 @@ template <class GridOrTreeType>
 inline typename GridOrTreeType::template ValueConverter<bool>::Type::Ptr
 sdfInteriorMask(const GridOrTreeType& volume, typename GridOrTreeType::ValueType isovalue)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType TreeType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
     const TreeType& tree = TreeAdapter<GridOrTreeType>::tree(volume);
 
-    typedef typename TreeType::template ValueConverter<bool>::Type::Ptr BoolTreePtrType;
+    using BoolTreePtrType = typename TreeType::template ValueConverter<bool>::Type::Ptr;
     BoolTreePtrType mask = level_set_util_internal::computeInteriorMask(tree, isovalue);
 
-    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(volume, mask);
+    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(
+        volume, mask);
 }
 
 
@@ -2376,18 +2424,21 @@ template<typename GridOrTreeType>
 inline typename GridOrTreeType::template ValueConverter<bool>::Type::Ptr
 extractEnclosedRegion(const GridOrTreeType& volume,
     typename GridOrTreeType::ValueType isovalue,
-    const typename TreeAdapter<GridOrTreeType>::TreeType::template ValueConverter<bool>::Type* fillMask)
+    const typename TreeAdapter<GridOrTreeType>::TreeType::template ValueConverter<bool>::Type*
+        fillMask)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType TreeType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
     const TreeType& tree = TreeAdapter<GridOrTreeType>::tree(volume);
 
-    typedef typename TreeType::template ValueConverter<char>::Type::Ptr CharTreePtrType;
-    CharTreePtrType regionMask = level_set_util_internal::computeEnclosedRegionMask(tree, isovalue, fillMask);
+    using CharTreePtrType = typename TreeType::template ValueConverter<char>::Type::Ptr;
+    CharTreePtrType regionMask = level_set_util_internal::computeEnclosedRegionMask(
+        tree, isovalue, fillMask);
 
-    typedef typename TreeType::template ValueConverter<bool>::Type::Ptr BoolTreePtrType;
+    using BoolTreePtrType = typename TreeType::template ValueConverter<bool>::Type::Ptr;
     BoolTreePtrType mask = level_set_util_internal::computeInteriorMask(*regionMask, 0);
 
-    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(volume, mask);
+    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(
+        volume, mask);
 }
 
 
@@ -2398,19 +2449,20 @@ template<typename GridOrTreeType>
 inline typename GridOrTreeType::template ValueConverter<bool>::Type::Ptr
 extractIsosurfaceMask(const GridOrTreeType& volume, typename GridOrTreeType::ValueType isovalue)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType TreeType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
     const TreeType& tree = TreeAdapter<GridOrTreeType>::tree(volume);
 
     std::vector<const typename TreeType::LeafNodeType*> nodes;
     tree.getNodes(nodes);
 
-    typedef typename TreeType::template ValueConverter<bool>::Type BoolTreeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
     typename BoolTreeType::Ptr mask(new BoolTreeType(false));
 
     level_set_util_internal::MaskIsovalueCrossingVoxels<TreeType> op(tree, nodes, *mask, isovalue);
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, nodes.size()), op);
 
-    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(volume, mask);
+    return level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(
+        volume, mask);
 }
 
 
@@ -2422,15 +2474,15 @@ inline void
 extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
     std::vector<typename GridOrTreeType::template ValueConverter<bool>::Type::Ptr>& masks)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType              TreeType;
-    typedef typename TreeType::template ValueConverter<bool>::Type      BoolTreeType;
-    typedef typename BoolTreeType::Ptr                                  BoolTreePtrType;
-    typedef typename BoolTreeType::LeafNodeType                         BoolLeafNodeType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolTreePtrType = typename BoolTreeType::Ptr;
+    using BoolLeafNodeType = typename BoolTreeType::LeafNodeType;
 
-    typedef level_set_util_internal::NodeMaskSegment<BoolLeafNodeType>  NodeMaskSegmentType;
-    typedef typename NodeMaskSegmentType::Ptr                           NodeMaskSegmentPtrType;
-    typedef typename std::vector<NodeMaskSegmentPtrType>                NodeMaskSegmentPtrVector;
-    typedef typename std::vector<NodeMaskSegmentType*>                  NodeMaskSegmentRawPtrVector;
+    using NodeMaskSegmentType = level_set_util_internal::NodeMaskSegment<BoolLeafNodeType>;
+    using NodeMaskSegmentPtrType = typename NodeMaskSegmentType::Ptr;
+    using NodeMaskSegmentPtrVector = typename std::vector<NodeMaskSegmentPtrType>;
+    using NodeMaskSegmentRawPtrVector = typename std::vector<NodeMaskSegmentType*>;
 
     /////
 
@@ -2450,10 +2502,12 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
     // 1. Split node masks into disjoint segments
     // Note: The LeafNode origin coord is modified to record the 'leafnodes' array offset.
 
-    boost::scoped_array<NodeMaskSegmentPtrVector> nodeSegmentArray(new NodeMaskSegmentPtrVector[leafnodes.size()]);
+    boost::scoped_array<NodeMaskSegmentPtrVector> nodeSegmentArray(
+        new NodeMaskSegmentPtrVector[leafnodes.size()]);
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, leafnodes.size()),
-        level_set_util_internal::SegmentNodeMask<BoolLeafNodeType>(leafnodes, nodeSegmentArray.get()));
+        level_set_util_internal::SegmentNodeMask<BoolLeafNodeType>(
+            leafnodes, nodeSegmentArray.get()));
 
 
     // 2. Compute segment connectivity
@@ -2483,7 +2537,7 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
 
         std::deque<NodeMaskSegmentType*> segmentQueue;
         segmentQueue.push_back(nextSegment);
-        nextSegment = NULL;
+        nextSegment = nullptr;
 
         while (!segmentQueue.empty()) {
 
@@ -2522,7 +2576,8 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
         }
 
         masks.push_back(
-            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(volume, mask));
+            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(
+                volume, mask));
 
     } else if (nodeSegmentGroups.size() > 1) {
 
@@ -2534,7 +2589,8 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
             tbb::parallel_reduce(tbb::blocked_range<size_t>(0, segmentGroup.size()), op);
 
             masks.push_back(
-                level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(volume, op.mask()));
+                level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::constructMask(
+                    volume, op.mask()));
         }
     }
 
@@ -2551,10 +2607,12 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
         }
 
         tbb::parallel_for(tbb::blocked_range<size_t>(0, segmentCount),
-            level_set_util_internal::ComputeActiveVoxelCount<BoolTreePtrType>(masks, voxelCountArray.get()));
+            level_set_util_internal::ComputeActiveVoxelCount<BoolTreePtrType>(
+                masks, voxelCountArray.get()));
 
         size_t *begin = segmentOrderArray.get();
-        tbb::parallel_sort(begin, begin + masks.size(), level_set_util_internal::GreaterCount(voxelCountArray.get()));
+        tbb::parallel_sort(begin, begin + masks.size(), level_set_util_internal::GreaterCount(
+            voxelCountArray.get()));
 
         std::vector<BoolTreePtrType> orderedMasks;
         orderedMasks.reserve(masks.size());
@@ -2571,12 +2629,13 @@ extractActiveVoxelSegmentMasks(const GridOrTreeType& volume,
 
 template<typename GridOrTreeType>
 inline void
-segmentActiveVoxels(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Ptr>& segments)
+segmentActiveVoxels(const GridOrTreeType& volume,
+    std::vector<typename GridOrTreeType::Ptr>& segments)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType          TreeType;
-    typedef typename TreeType::Ptr                                  TreePtrType;
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::Ptr                              BoolTreePtrType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
+    using TreePtrType = typename TreeType::Ptr;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolTreePtrType = typename BoolTreeType::Ptr;
 
     const TreeType& inputTree = TreeAdapter<GridOrTreeType>::tree(volume);
 
@@ -2590,7 +2649,8 @@ segmentActiveVoxels(const GridOrTreeType& volume, std::vector<typename GridOrTre
         // single segment early-out
         TreePtrType segment(new TreeType(inputTree));
         segments.push_back(
-            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(volume, segment));
+            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(
+                volume, segment));
         return;
     }
 
@@ -2600,11 +2660,13 @@ segmentActiveVoxels(const GridOrTreeType& volume, std::vector<typename GridOrTre
     std::vector<TreePtrType> outputSegmentArray(numSegments);
 
     tbb::parallel_for(segmentRange,
-        level_set_util_internal::MaskedCopy<TreeType>(inputTree, outputSegmentArray, maskSegmentArray));
+        level_set_util_internal::MaskedCopy<TreeType>(inputTree, outputSegmentArray,
+            maskSegmentArray));
 
     for (size_t n = 0, N = numSegments; n < N; ++n) {
         segments.push_back(
-            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(volume, outputSegmentArray[n]));
+            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(
+                volume, outputSegmentArray[n]));
     }
 }
 
@@ -2613,10 +2675,10 @@ template<typename GridOrTreeType>
 inline void
 segmentSDF(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Ptr>& segments)
 {
-    typedef typename TreeAdapter<GridOrTreeType>::TreeType          TreeType;
-    typedef typename TreeType::Ptr                                  TreePtrType;
-    typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::Ptr                              BoolTreePtrType;
+    using TreeType = typename TreeAdapter<GridOrTreeType>::TreeType;
+    using TreePtrType = typename TreeType::Ptr;
+    using BoolTreeType = typename TreeType::template ValueConverter<bool>::Type;
+    using BoolTreePtrType = typename BoolTreeType::Ptr;
 
     const TreeType& inputTree = TreeAdapter<GridOrTreeType>::tree(volume);
 
@@ -2633,7 +2695,8 @@ segmentSDF(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Pt
         // single segment early-out
         TreePtrType segment(new TreeType(inputTree));
         segments.push_back(
-            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(volume, segment));
+            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(
+                volume, segment));
         return;
     }
 
@@ -2647,8 +2710,8 @@ segmentSDF(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Pt
     // 4. Export sdf segments
     std::vector<TreePtrType> outputSegmentArray(numSegments);
 
-    tbb::parallel_for(segmentRange,
-        level_set_util_internal::MaskedCopy<TreeType>(inputTree, outputSegmentArray, maskSegmentArray));
+    tbb::parallel_for(segmentRange, level_set_util_internal::MaskedCopy<TreeType>(
+        inputTree, outputSegmentArray, maskSegmentArray));
 
     tbb::parallel_for(segmentRange,
         level_set_util_internal::FloodFillSign<TreeType>(inputTree, outputSegmentArray));
@@ -2656,10 +2719,10 @@ segmentSDF(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Pt
 
     for (size_t n = 0, N = numSegments; n < N; ++n) {
         segments.push_back(
-            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(volume, outputSegmentArray[n]));
+            level_set_util_internal::GridOrTreeConstructor<GridOrTreeType>::construct(
+                volume, outputSegmentArray[n]));
     }
 }
-
 
 } // namespace tools
 } // namespace OPENVDB_VERSION_NAME
@@ -2667,7 +2730,6 @@ segmentSDF(const GridOrTreeType& volume, std::vector<typename GridOrTreeType::Pt
 
 #endif // OPENVDB_TOOLS_LEVEL_SET_UTIL_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
-

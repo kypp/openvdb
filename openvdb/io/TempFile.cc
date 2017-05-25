@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -27,7 +27,7 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-//
+
 /// @file TempFile.cc
 
 #include "TempFile.h"
@@ -118,8 +118,8 @@ struct TempFile::TempFileImpl
         return P_tmpdir;
     }
 
-    typedef boost::iostreams::file_descriptor_sink DeviceType;
-    typedef boost::iostreams::stream_buffer<boost::iostreams::file_descriptor_sink> BufferType;
+    using DeviceType = boost::iostreams::file_descriptor_sink;
+    using BufferType = boost::iostreams::stream_buffer<boost::iostreams::file_descriptor_sink>;
 
     std::string mPath;
     DeviceType mDevice;
@@ -161,7 +161,7 @@ private:
 };
 
 
-TempFile::TempFile(): std::ostream(NULL), mImpl(new TempFileImpl(*this)) {}
+TempFile::TempFile(): std::ostream(nullptr), mImpl(new TempFileImpl(*this)) {}
 TempFile::~TempFile() { this->close(); }
 const std::string& TempFile::filename() const { return mImpl->filename(); }
 bool TempFile::is_open() const { return mImpl->is_open(); }
@@ -171,6 +171,6 @@ void TempFile::close() { mImpl->close(); }
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

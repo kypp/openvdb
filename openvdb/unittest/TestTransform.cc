@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -398,8 +398,8 @@ TestTransform::testBackwardCompatibility()
 
     ss.clear();
     writeString(ss, Name("LinearTransform"));
-    ss.write((char*)&tmpMin, sizeof(Coord::ValueType) * 3);
-    ss.write((char*)&tmpMax, sizeof(Coord::ValueType) * 3);
+    ss.write(reinterpret_cast<char*>(&tmpMin), sizeof(Coord::ValueType) * 3);
+    ss.write(reinterpret_cast<char*>(&tmpMax), sizeof(Coord::ValueType) * 3);
     tmpLocalToWorld = math::Mat4d::identity(),
     tmpWorldToLocal = math::Mat4d::identity(),
     tmpVoxelToLocal = math::Mat4d::identity(),
@@ -440,8 +440,8 @@ TestTransform::testBackwardCompatibility()
 
     ss.clear();
     writeString(ss, Name("LinearTransform"));
-    ss.write((char*)&tmpMin, sizeof(Coord::ValueType) * 3);
-    ss.write((char*)&tmpMax, sizeof(Coord::ValueType) * 3);
+    ss.write(reinterpret_cast<char*>(&tmpMin), sizeof(Coord::ValueType) * 3);
+    ss.write(reinterpret_cast<char*>(&tmpMax), sizeof(Coord::ValueType) * 3);
     tmpLocalToWorld = math::Mat4d::identity(),
     tmpWorldToLocal = math::Mat4d::identity(),
     tmpVoxelToLocal = math::Mat4d::identity(),
@@ -561,6 +561,6 @@ TestTransform::testNonlinearTransform()
 }
 */
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -623,7 +623,7 @@ copyMesh(
     const GA_Offset startpt = detail.appendPointBlock(npoints);
     UT_ASSERT_COMPILETIME(sizeof(openvdb::tools::PointList::element_type) == sizeof(UT_Vector3));
     GA_RWHandleV3 pthandle(detail.getP());
-    pthandle.setBlock(startpt, npoints, (UT_Vector3 *)points.get());
+    pthandle.setBlock(startpt, npoints, reinterpret_cast<UT_Vector3*>(points.get()));
 
     // group fracture seam points
     if (seamPointGroup && GA_Size(mesher.pointFlags().size()) == npoints) {
@@ -1372,6 +1372,6 @@ SOP_OpenVDB_Convert::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

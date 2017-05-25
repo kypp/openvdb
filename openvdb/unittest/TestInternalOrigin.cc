@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -65,7 +65,7 @@ TestInternalOrigin::test()
     FloatTree4 tree(0.0f);
     std::set<openvdb::Coord>::iterator iter=indices.begin();
     for (int n = 0; iter != indices.end(); ++n, ++iter) {
-        tree.setValue(*iter, float(1.0 + float(n) * 0.5f));
+        tree.setValue(*iter, float(1.0 + double(n) * 0.5));
     }
 
     openvdb::Coord C3, G;
@@ -101,6 +101,6 @@ TestInternalOrigin::test()
     CPPUNIT_ASSERT(indices.size() == 0);
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

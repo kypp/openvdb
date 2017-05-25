@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -154,7 +154,7 @@ sopBuildAttrMenu(void* data, PRM_Name* menuEntries, int themenusize,
 {
     if (data == NULL || menuEntries == NULL || spare == NULL) return;
 
-    SOP_Node* sop = CAST_SOPNODE((OP_Node *)data);
+    SOP_Node* sop = CAST_SOPNODE(static_cast<OP_Node*>(data));
 
     if (sop == NULL) {
         // terminate and quit
@@ -1183,7 +1183,7 @@ SOP_OpenVDB_From_Particles::transferAttributes(
     }
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
 

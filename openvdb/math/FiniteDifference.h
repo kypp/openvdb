@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -27,7 +27,7 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-//
+
 /// @file FiniteDifference.h
 
 #ifndef OPENVDB_MATH_FINITEDIFFERENCE_HAS_BEEN_INCLUDED
@@ -336,7 +336,7 @@ WENO5(const ValueType& v1, const ValueType& v2, const ValueType& v3,
     // is a reference value (squared) for the function being interpolated.  For
     // example if 'v' is of order 1000, then scale2 = 10^6 is ok.  But in practice
     // leave scale2 = 1.
-    const double eps = 1e-6 * scale2;
+    const double eps = 1.0e-6 * static_cast<double>(scale2);
     // {\tilde \omega_k} = \gamma_k / ( \beta_k + \epsilon)^2 in Shu's ICASE report)
     const double A1=0.1/math::Pow2(C*math::Pow2(v1-2*v2+v3)+0.25*math::Pow2(v1-4*v2+3.0*v3)+eps),
                  A2=0.6/math::Pow2(C*math::Pow2(v2-2*v3+v4)+0.25*math::Pow2(v2-v4)+eps),
@@ -2371,6 +2371,6 @@ struct D2<CD_SIXTH>
 
 #endif // OPENVDB_MATH_FINITEDIFFERENCE_HAS_BEEN_INCLUDED
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -2980,7 +2980,12 @@ GEO_PrimVDB::GridAccessor::setGridAdapter(
     if (myGrid.get() == &grid)
 	return;
     setVertexPosition(grid.transform(), prim);
+#ifdef OPENVDB_3_ABI_COMPATIBLE
     myGrid = grid.copyGrid(); // always shallow-copy the source grid
+#else
+    myGrid = openvdb::ConstPtrCast<openvdb::GridBase>(
+	grid.copyGrid()); // always shallow-copy the source grid
+#endif
     myStorageType = UTvdbGetGridType(*myGrid);
 }
 
@@ -3390,6 +3395,6 @@ GEO_PrimVDB::isIntrinsicMetadata(const char *name)
 
 #endif // UT_VERSION_INT < 0x0c050157 // earlier than 12.5.343
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -450,6 +450,11 @@ protected:
     virtual OP_ERROR cookMySop(OP_Context&);
 };
 
+
+int inputRangeCB(void*, int, float, const PRM_Template*);
+int outputRangeCB(void*, int, float, const PRM_Template*);
+
+
 int
 inputRangeCB(void* data, int /*idx*/, float /*time*/, const PRM_Template*)
 {
@@ -651,6 +656,6 @@ SOP_OpenVDB_Remap::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

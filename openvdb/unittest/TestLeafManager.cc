@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -28,40 +28,37 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-#include <cstdio> // for remove()
-#include <fstream>
-#include <sstream>
-#include <cppunit/extensions/HelperMacros.h>
-#include <openvdb/Exceptions.h>
 #include <openvdb/Types.h>
 #include <openvdb/tree/LeafManager.h>
+#include <openvdb/util/CpuTimer.h>
 #include "util.h" // for unittest_util::makeSphere()
+#include <cppunit/extensions/HelperMacros.h>
 
-#define ASSERT_DOUBLES_EXACTLY_EQUAL(expected, actual) \
-    CPPUNIT_ASSERT_DOUBLES_EQUAL((expected), (actual), /*tolerance=*/0.0);
 
 class TestLeafManager: public CppUnit::TestFixture
 {
 public:
-    virtual void setUp() { openvdb::initialize(); }
-    virtual void tearDown() { openvdb::uninitialize(); }
+    void setUp() override { openvdb::initialize(); }
+    void tearDown() override { openvdb::uninitialize(); }
 
     CPPUNIT_TEST_SUITE(TestLeafManager);
-    CPPUNIT_TEST(test);
+    CPPUNIT_TEST(testBasics);
+    CPPUNIT_TEST(testActiveLeafVoxelCount);
     CPPUNIT_TEST(testForeach);
     CPPUNIT_TEST(testReduce);
     CPPUNIT_TEST_SUITE_END();
-   
-    void test();
+
+    void testBasics();
+    void testActiveLeafVoxelCount();
     void testForeach();
     void testReduce();
 };
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION(TestLeafManager);
-  
+
 void
-TestLeafManager::test()
+TestLeafManager::testBasics()
 {
     using openvdb::CoordBBox;
     using openvdb::Coord;
@@ -191,6 +188,44 @@ TestLeafManager::test()
     }
 }
 
+void
+TestLeafManager::testActiveLeafVoxelCount()
+{
+    using namespace openvdb;
+
+    for (const Int32 dim: { 87, 1023, 1024, 2023 }) {
+        const CoordBBox denseBBox{Coord{0}, Coord{dim - 1}};
+        const auto size = denseBBox.volume();
+
+        // Create a large dense tree for testing but use a MaskTree to
+        // minimize the memory overhead
+        MaskTree tree{false};
+        tree.denseFill(denseBBox, true, true);
+        // Add some tiles, which should not contribute to the leaf voxel count.
+        tree.addTile(/*level=*/2, Coord{10000}, true, true);
+        tree.addTile(/*level=*/1, Coord{-10000}, true, true);
+        tree.addTile(/*level=*/1, Coord{20000}, false, false);
+
+        tree::LeafManager<MaskTree> mgr(tree);
+
+        // On a dual CPU Intel(R) Xeon(R) E5-2697 v3 @ 2.60GHz
+        // the speedup of LeafManager::activeLeafVoxelCount over
+        // Tree::activeLeafVoxelCount is ~15x (assuming a LeafManager already exists)
+        //openvdb::util::CpuTimer t("\nTree::activeVoxelCount");
+        const auto treeActiveVoxels = tree.activeVoxelCount();
+        //t.restart("\nTree::activeLeafVoxelCount");
+        const auto treeActiveLeafVoxels = tree.activeLeafVoxelCount();
+        //t.restart("\nLeafManager::activeLeafVoxelCount");
+        const auto mgrActiveLeafVoxels = mgr.activeLeafVoxelCount();//multi-threaded
+        //t.stop();
+        //std::cerr << "Old1 = " << treeActiveVoxels << " old2 = " << treeActiveLeafVoxels
+        //    << " New = " << mgrActiveLeafVoxels << std::endl;
+        CPPUNIT_ASSERT(size < treeActiveVoxels);
+        CPPUNIT_ASSERT_EQUAL(size, treeActiveLeafVoxels);
+        CPPUNIT_ASSERT_EQUAL(size, mgrActiveLeafVoxels);
+    }
+}
+
 namespace {
 
 struct ForeachOp
@@ -238,7 +273,7 @@ TestLeafManager::testForeach()
     tree.fill( bbox1, -1.0f);
     tree.fill( bbox2,  1.0f);
     tree.voxelizeActiveTiles();
-    
+
     for (CoordBBox::Iterator<true> iter(bbox1); iter; ++iter) {
         CPPUNIT_ASSERT_EQUAL( -1.0f, tree.getValue(*iter));
     }
@@ -279,7 +314,7 @@ TestLeafManager::testReduce()
     tree.fill( bbox1, -1.0f);
     tree.fill( bbox2,  1.0f);
     tree.voxelizeActiveTiles();
-    
+
     for (CoordBBox::Iterator<true> iter(bbox1); iter; ++iter) {
         CPPUNIT_ASSERT_EQUAL( -1.0f, tree.getValue(*iter));
     }
@@ -300,7 +335,7 @@ TestLeafManager::testReduce()
     CPPUNIT_ASSERT_EQUAL(size_t(0), r.auxBufferCount());
     CPPUNIT_ASSERT_EQUAL(size_t(0), r.auxBuffersPerLeaf());
 
-    Index n = 0; 
+    Index n = 0;
     for (CoordBBox::Iterator<true> iter(bbox1); iter; ++iter) {
         ++n;
         CPPUNIT_ASSERT_EQUAL( -1.0f, tree.getValue(*iter));
@@ -315,6 +350,6 @@ TestLeafManager::testReduce()
     CPPUNIT_ASSERT_EQUAL(FloatTree::LeafNodeType::numValues(), n);
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

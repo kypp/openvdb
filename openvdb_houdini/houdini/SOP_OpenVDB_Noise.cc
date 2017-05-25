@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -408,7 +408,10 @@ SOP_OpenVDB_Noise::applyNoise(
                 cvdb::tools::BoxSampler::sample<TreeType>(maskGrid->tree(), voxelPt, result);
 
                 // for the gradient of the maskGrid
-                cvdb::Coord mask_ijk((int)voxelPt[0], (int)voxelPt[1], (int)voxelPt[2]);
+                cvdb::Coord mask_ijk(
+                    static_cast<int>(voxelPt[0]),
+                    static_cast<int>(voxelPt[1]),
+                    static_cast<int>(voxelPt[2]));
                 maskStencil.moveTo(mask_ijk);
                 // normal alignment
                 Vec3Type grid_grad = Gradient::result(map, stencil);
@@ -551,6 +554,6 @@ SOP_OpenVDB_Noise::cookMySop(OP_Context &context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )

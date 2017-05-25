@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 //
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
@@ -47,12 +47,11 @@
 #include <UT/UT_Interrupt.h>
 #include <PRM/PRM_Parm.h>
 
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/utility/enable_if.hpp>
 #include <boost/scoped_array.hpp>
 
 #include <string>
 #include <sstream>
+#include <type_traits>
 #include <vector>
 
 namespace hvdb = openvdb_houdini;
@@ -109,7 +108,9 @@ template<typename ValueType>
 struct AbsLessThan {
     AbsLessThan(ValueType val) : mValue(openvdb::math::Abs(val)) {}
     template<typename Iterator>
-    bool operator()(const Iterator& it) const { return !(ValueType(openvdb::math::Abs(*it)) < mValue); }
+    bool operator()(const Iterator& it) const {
+        return !(ValueType(openvdb::math::Abs(*it)) < mValue);
+    }
     const ValueType mValue;
 };
 
@@ -161,17 +162,23 @@ struct GradientNorm {
 
     template<typename T>
     inline T
-    gradientNorm(const openvdb::Coord ijk, const T scale) {
+    gradientNorm(const openvdb::Coord& ijk, const T scale) {
         return scale * T(std::sqrt(double(
             openvdb::math::ISGradientNormSqrd<openvdb::math::FIRST_BIAS>::result(mAcc, ijk))));
     }
 
+    /// @{
+    // The gradient magnitude test is applied only to scalar, floating-point grids,
+    // but this class needs to compile for all grid types.
+
     template<typename T>
     inline openvdb::math::Vec3<T>
-    gradientNorm(const openvdb::Coord ijk, const openvdb::math::Vec3<T>) {
+    gradientNorm(const openvdb::Coord&, const openvdb::math::Vec3<T>) {
         return openvdb::math::Vec3<T>(0);
     }
 
+    inline bool gradientNorm(const openvdb::Coord&, bool) { return false; }
+    /// @}
 
 private:
     GradientNorm& operator=(const GradientNorm&); // disable assignment
@@ -231,7 +238,7 @@ struct Visitor
     std::string invalidValuesInfo() const
     {
         std::stringstream info;
-    
+
          if (!mValueMask->empty()) {
 
             info << "invalid: ";
@@ -318,7 +325,7 @@ private:
         void operator()(const tbb::blocked_range<size_t>& range) {
 
             openvdb::tree::ValueAccessor<BoolTreeType> mask(*mMask);
-  
+
             for (size_t n = range.begin(), N = range.end(); n < N; ++n) {
 
                 const LeafNodeType& node = *mNodes[n];
@@ -425,7 +432,7 @@ private:
     BoolTreePtr                             mValueMask;
     std::vector<const LeafNodeType*>        mLeafNodes;
     std::vector<const InternalNodeType*>    mInternalNodes;
-    
+
 }; // struct Visitor
 
 
@@ -725,7 +732,7 @@ struct GridTestLog
 
         std::stringstream log;
         log << mGridName;
-       
+
         if (mPassed > 0) {
             log << " passed " << mPassed;
         }
@@ -739,9 +746,10 @@ struct GridTestLog
         }
 
         log << "\n";
-     
+
         if (mSkipped > 0) {
-            log << "   - skipped " << mSkipped << " scalar floating-point specific test" << (mSkipped > 1 ? "s.\n" : ".\n");
+            log << "   - skipped " << mSkipped << " scalar floating-point specific test"
+                << (mSkipped > 1 ? "s.\n" : ".\n");
         }
 
         if (!mFailedMsg.empty()) {
@@ -781,7 +789,8 @@ struct MaskData {
 
 
 template<typename GridType>
-inline typename boost::enable_if<boost::is_floating_point<typename GridType::ValueType>, void>::type
+inline
+typename std::enable_if<std::is_floating_point<typename GridType::ValueType>::value, void>::type
 normalizeLevelSet(GridType& grid)
 {
     openvdb::tools::LevelSetTracker<GridType> op(grid);
@@ -792,8 +801,11 @@ normalizeLevelSet(GridType& grid)
 }
 
 template<typename GridType>
-inline typename boost::disable_if<boost::is_floating_point<typename GridType::ValueType>, void>::type
-normalizeLevelSet(GridType&) { }
+inline
+typename std::enable_if<!std::is_floating_point<typename GridType::ValueType>::value, void>::type
+normalizeLevelSet(GridType&)
+{
+}
 
 
 template<typename T>
@@ -853,7 +865,8 @@ struct FixVoxelValues
 
             if (isRange) { // clamp
                 for (ValueOnCIter it = maskNode.cbeginValueOn(); it; ++it) {
-                    node->setValueOnly(it.pos(), clampValueAndVectorMagnitude(node->getValue(it.pos()), minVal, maxVal));
+                    node->setValueOnly(it.pos(),
+                        clampValueAndVectorMagnitude(node->getValue(it.pos()), minVal, maxVal));
                 }
             } else { // replace
                 for (ValueOnCIter it = maskNode.cbeginValueOn(); it; ++it) {
@@ -879,7 +892,6 @@ fixValues(const GridType& grid, std::vector<MaskData<GridType> > fixMasks,
     typedef typename GridType::ValueType                            ValueType;
     typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
     typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
-    typedef typename openvdb::Grid<BoolTreeType>                    BoolGridType;
     typedef MaskData<GridType>                                      MaskDataType;
 
 
@@ -917,7 +929,8 @@ fixValues(const GridType& grid, std::vector<MaskData<GridType> > fixMasks,
 
                 ijk = it.getCoord();
 
-                const ValueType val = clampValueAndVectorMagnitude(acc.getValue(ijk), fix.minValue, fix.maxValue);
+                const ValueType val = clampValueAndVectorMagnitude(
+                    acc.getValue(ijk), fix.minValue, fix.maxValue);
                 acc.addTile(it.getLevel(), ijk, val, acc.isValueOn(ijk));
             }
 
@@ -958,12 +971,11 @@ outputMaskAndPoints(const GridType& grid, const std::string& gridName,
     bool outputPoints,
     GU_Detail& detail,
     hvdb::Interrupter& interupter,
-    const GridType* replacementGrid = NULL)
+    const GridType* replacementGrid = nullptr)
 {
     typedef typename GridType::TreeType                             TreeType;
     typedef typename GridType::ValueType                            ValueType;
     typedef typename TreeType::template ValueConverter<bool>::Type  BoolTreeType;
-    typedef typename BoolTreeType::LeafNodeType                     BoolLeafNodeType;
     typedef typename openvdb::Grid<BoolTreeType>                    BoolGridType;
 
     if (outputMask || outputPoints) {
@@ -1025,7 +1037,7 @@ outputMaskAndPoints(const GridType& grid, const std::string& gridName,
 struct TestCollection
 {
     TestCollection(const TestData& test, GU_Detail& detail,
-        hvdb::Interrupter& interupter, UT_ErrorManager* errorManager = NULL)
+        hvdb::Interrupter& interupter, UT_ErrorManager* errorManager = nullptr)
         : mTest(test)
         , mDetail(&detail)
         , mInterupter(&interupter)
@@ -1043,7 +1055,8 @@ struct TestCollection
         if (mErrorManager) {
             if (mGridsFailed > 0) {
                 std::stringstream msg;
-                msg << mGridsFailed << " grid" << (mGridsFailed > 1 ? "s" : "") << " failed one or more tests.";
+                msg << mGridsFailed << " grid" << (mGridsFailed > 1 ? "s" : "")
+                    << " failed one or more tests.";
                 mErrorManager->addWarning(SOP_OPTYPE_NAME, SOP_MESSAGE, msg.str().c_str());
             }
 
@@ -1061,7 +1074,7 @@ struct TestCollection
 
     void setPrimitiveName(const std::string& name) { mPrimitiveName = name; }
 
-    bool hasReplacementGrid() const { return mReplacementGrid != NULL; }
+    bool hasReplacementGrid() const { return mReplacementGrid != nullptr; }
 
     openvdb::GridBase::Ptr replacementGrid() { return mReplacementGrid; }
 
@@ -1096,8 +1109,9 @@ struct TestCollection
 
         if (mTest.testFinite) {
 
-            if (!visitor.run(VisitorType::TILES_AND_VOXELS, VisitorType::ALL_VALUES, FiniteValue())) {
-
+            if (!visitor.run(VisitorType::TILES_AND_VOXELS,
+                VisitorType::ALL_VALUES, FiniteValue()))
+            {
                 log.appendFailed("Finite Values", visitor.invalidValuesInfo());
 
                 if (mTest.fixFinite) {
@@ -1108,7 +1122,7 @@ struct TestCollection
 
             } else {
                 log.appendPassed();
-            } 
+            }
         }
 
         if (mInterupter->wasInterrupted()) return;
@@ -1118,7 +1132,7 @@ struct TestCollection
         {
             ApproxEqual<ValueType> test(tree.background());
             if (!visitor.run(VisitorType::TILES_AND_VOXELS, VisitorType::INACTIVE_VALUES, test)) {
-                
+
                 log.appendFailed("Uniform Background", visitor.invalidValuesInfo());
 
                 if (mTest.fixUniformBackground) {
@@ -1184,11 +1198,12 @@ struct TestCollection
 
             if (mTest.testSymmetricNarrowBand) {
 
-                if (boost::is_floating_point<ValueType>::value) {
+                if (std::is_floating_point<ValueType>::value) {
                     const ValueType background = openvdb::math::Abs(tree.background());
                     AbsApproxEqual<ValueType> bgTest(background);
                     InRange valueTest(-toFloat(background), toFloat(background));
-                    if (!visitor.run(VisitorType::TILES_AND_VOXELS,VisitorType::INACTIVE_VALUES,bgTest)
+                    if (!visitor.run(VisitorType::TILES_AND_VOXELS,
+                        VisitorType::INACTIVE_VALUES, bgTest)
                         || !visitor.run(VisitorType::VOXELS, VisitorType::ACTIVE_VALUES, valueTest))
                     {
                         log.appendFailed("Symmetric Narrow Band");
@@ -1205,13 +1220,13 @@ struct TestCollection
 
             if (mTest.testMinimumBandWidth) {
 
-                if (boost::is_floating_point<ValueType>::value) {
+                if (std::is_floating_point<ValueType>::value) {
                     const ValueType width = ValueType(mTest.minBandWidth) * ValueType(voxelSize);
 
                     AbsLessThan<ValueType> test(width);
 
-                    if (tree.background() < width ||
-                        !visitor.run(VisitorType::TILES_AND_VOXELS, VisitorType::INACTIVE_VALUES, test))
+                    if (tree.background() < width || !visitor.run(
+                        VisitorType::TILES_AND_VOXELS, VisitorType::INACTIVE_VALUES, test))
                     {
                         log.appendFailed("Minimum Band Width");
                     } else {
@@ -1226,12 +1241,14 @@ struct TestCollection
 
             if (mTest.testClosedSurface) {
 
-                if (boost::is_floating_point<ValueType>::value) {
-                    typename GridType::Ptr levelSet =
-                        openvdb::tools::levelSetRebuild(grid, 0.0f, 2.0f, 2.0f, NULL, mInterupter);
+                if (std::is_floating_point<ValueType>::value) {
+                    typename GridType::Ptr levelSet = openvdb::tools::levelSetRebuild(
+                        grid, 0.0f, 2.0f, 2.0f, nullptr, mInterupter);
 
                     SameSign<TreeType> test(levelSet->tree());
-                    if (!visitor.run(VisitorType::TILES_AND_VOXELS, VisitorType::ALL_VALUES, test)) {
+                    if (!visitor.run(VisitorType::TILES_AND_VOXELS,
+                        VisitorType::ALL_VALUES, test))
+                    {
                         log.appendFailed("Closed Surface");
                     } else {
                         log.appendPassed();
@@ -1246,9 +1263,10 @@ struct TestCollection
 
             if (mTest.testGradientMagnitude) {
 
-                if (boost::is_floating_point<ValueType>::value) {
+                if (std::is_floating_point<ValueType>::value) {
 
-                    GradientNorm<TreeType> test(tree, voxelSize, ValueType(mTest.gradientTolerance));
+                    GradientNorm<TreeType> test(tree, voxelSize,
+                        ValueType(mTest.gradientTolerance));
                     if (!visitor.run(VisitorType::VOXELS, VisitorType::ACTIVE_VALUES, test)) {
 
                         log.appendFailed("Gradient Magnitude", visitor.invalidValuesInfo());
@@ -1274,8 +1292,9 @@ struct TestCollection
             if (mTest.testBackgroundZero) {
 
                 ApproxEqual<ValueType> test(ValueType(0.0));
-                if (!visitor.run(VisitorType::TILES_AND_VOXELS, VisitorType::INACTIVE_VALUES, test)) {
-
+                if (!visitor.run(VisitorType::TILES_AND_VOXELS,
+                    VisitorType::INACTIVE_VALUES, test))
+                {
                     log.appendFailed("Background Zero", visitor.invalidValuesInfo());
 
                     if (mTest.fixBackgroundZero) {
@@ -1297,7 +1316,8 @@ struct TestCollection
                     log.appendFailed("Active Values in [0, 1]", visitor.invalidValuesInfo());
 
                     if (mTest.fixActiveValuesFromZeroToOne) {
-                        fixMasks.push_back(MaskDataType(visitor.valueMask(), ValueType(0.0), ValueType(1.0)));
+                        fixMasks.push_back(
+                            MaskDataType(visitor.valueMask(), ValueType(0.0), ValueType(1.0)));
                     }
 
                     if (mTest.idActiveValuesFromZeroToOne) idMasks.push_back(visitor.valueMask());
@@ -1464,11 +1484,15 @@ SOP_OpenVDB_Diagnostics::validateOperationTests()
 }
 
 
+int selectOperationTestsCB(void*, int, float, const PRM_Template*);
+int validateOperationTestsCB(void*, int, float, const PRM_Template*);
+
+
 int
 selectOperationTestsCB(void* data, int /*idx*/, float /*time*/, const PRM_Template*)
 {
    SOP_OpenVDB_Diagnostics* sop = static_cast<SOP_OpenVDB_Diagnostics*>(data);
-   if (sop == NULL) return 0;
+   if (sop == nullptr) return 0;
    return sop->selectOperationTests();
 }
 
@@ -1476,7 +1500,7 @@ int
 validateOperationTestsCB(void* data, int /*idx*/, float /*time*/, const PRM_Template*)
 {
    SOP_OpenVDB_Diagnostics* sop = static_cast<SOP_OpenVDB_Diagnostics*>(data);
-   if (sop == NULL) return 0;
+   if (sop == nullptr) return 0;
    return sop->validateOperationTests();
 }
 
@@ -1493,7 +1517,7 @@ spacing(int widthInPixels)
 void
 newSopOperator(OP_OperatorTable* table)
 {
-    if (table == NULL) return;
+    if (table == nullptr) return;
 
     hutil::ParmList parms;
 
@@ -1900,6 +1924,6 @@ SOP_OpenVDB_Diagnostics::cookMySop(OP_Context& context)
     return error();
 }
 
-// Copyright (c) 2012-2016 DreamWorks Animation LLC
+// Copyright (c) 2012-2017 DreamWorks Animation LLC
 // All rights reserved. This software is distributed under the
 // Mozilla Public License 2.0 ( http://www.mozilla.org/MPL/2.0/ )
