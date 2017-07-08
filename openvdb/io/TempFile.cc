@@ -33,17 +33,7 @@
 #include "TempFile.h"
 
 #include <openvdb/Exceptions.h>
-#ifndef _MSC_VER
-#include <boost/iostreams/stream.hpp>
-#include <boost/iostreams/device/file_descriptor.hpp>
-#include <boost/version.hpp> // for BOOST_VERSION
-#include <cstdlib> // for std::getenv(), mkstemp()
-#include <sys/types.h> // for mode_t
-#include <sys/stat.h> // for mkdir(), umask()
-#include <unistd.h> // for access()
-#else
 #include <fstream> // for std::filebuf
-#endif
 #include <cstdio> // for std::tmpnam(), L_tmpnam, P_tmpdir
 #include <iostream>
 #include <sstream>
@@ -69,63 +59,6 @@ struct TempFile::TempFileImpl
     /// @internal boost::filesystem::unique_path(), etc. might be useful here,
     /// but as of 9/2014, Houdini ships without the Boost.Filesystem library,
     /// which makes it much less convenient to use that library.
-#ifndef _MSC_VER
-    TempFileImpl(std::ostream& os): mFileDescr(-1) { this->init(os); }
-
-    void init(std::ostream& os)
-    {
-        std::string fn = this->getTempDir() + "/openvdb_temp_XXXXXX";
-        std::vector<char> fnbuf(fn.begin(), fn.end());
-        fnbuf.push_back(char(0));
-
-        //const mode_t savedMode = ::umask(~(S_IRUSR | S_IWUSR));
-        mFileDescr = ::mkstemp(&fnbuf[0]);
-        //::umask(savedMode);
-        if (mFileDescr < 0) {
-            OPENVDB_THROW(IoError, "failed to generate temporary file");
-        }
-
-        mPath.assign(&fnbuf[0]);
-
-#if DWA_BOOST_VERSION >= 1046000
-        mDevice = DeviceType(mFileDescr, boost::iostreams::never_close_handle);
-#else
-        mDevice = DeviceType(mFileDescr, /*closeOnExit=*/false);
-#endif
-        mBuffer.open(mDevice);
-        os.rdbuf(&mBuffer);
-
-        if (!os.good()) {
-            OPENVDB_THROW(IoError, "failed to open temporary file " + mPath);
-        }
-    }
-
-    void close() { mBuffer.close(); if (mFileDescr >= 0) ::close(mFileDescr); }
-
-    static std::string getTempDir()
-    {
-        if (const char* dir = std::getenv("OPENVDB_TEMP_DIR")) {
-            if (0 != ::access(dir, F_OK)) {
-                ::mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR);
-                if (0 != ::access(dir, F_OK)) {
-                    OPENVDB_THROW(IoError,
-                        "failed to create OPENVDB_TEMP_DIR (" + std::string(dir) + ")");
-                }
-            }
-            return dir;
-        }
-        if (const char* dir = std::getenv("TMPDIR")) return dir;
-        return P_tmpdir;
-    }
-
-    using DeviceType = boost::iostreams::file_descriptor_sink;
-    using BufferType = boost::iostreams::stream_buffer<boost::iostreams::file_descriptor_sink>;
-
-    std::string mPath;
-    DeviceType mDevice;
-    BufferType mBuffer;
-    int mFileDescr;
-#else // _MSC_VER
     // Use only standard library routines; no POSIX.
 
     TempFileImpl(std::ostream& os) { this->init(os); }
@@ -153,7 +86,6 @@ struct TempFile::TempFileImpl
 
     std::string mPath;
     std::filebuf mBuffer;
-#endif // _MSC_VER
 
 private:
     TempFileImpl(const TempFileImpl&); // disable copying
