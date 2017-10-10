@@ -36,10 +36,13 @@
 #include <openvdb/io/Compression.h> // for io::readData(), etc.
 #include "Iterator.h"
 #include "LeafBuffer.h"
+#include <algorithm> // for std::nth_element()
 #include <iostream>
 #include <memory>
-#include <algorithm>// for std::nth_element
+#include <sstream>
+#include <string>
 #include <type_traits>
+#include <vector>
 
 
 class TestLeaf;
@@ -103,7 +106,7 @@ public:
                       bool active = false);
 
 
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     /// @brief "Partial creation" constructor used during file input
     /// @param coords  the grid index coordinates of a voxel
     /// @param value   a value with which to fill the buffer
@@ -173,7 +176,7 @@ public:
     /// Return @c true if this node contains only active voxels.
     bool isDense() const { return mValueMask.isOn(); }
 
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     /// Return @c true if memory for this node's buffer has been allocated.
     bool isAllocated() const { return !mBuffer.isOutOfCore() && !mBuffer.empty(); }
     /// Allocate memory for this node's buffer if it has not already been allocated.
@@ -958,7 +961,7 @@ LeafNode<T, Log2Dim>::LeafNode(const Coord& xyz, const ValueType& val, bool acti
 }
 
 
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
 template<typename T, Index Log2Dim>
 inline
 LeafNode<T, Log2Dim>::LeafNode(PartialCreate, const Coord& xyz, const ValueType& val, bool active):
@@ -1200,7 +1203,7 @@ template<typename T, Index Log2Dim>
 inline void
 LeafNode<T, Log2Dim>::fill(const CoordBBox& bbox, const ValueType& value, bool active)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1245,7 +1248,7 @@ template<typename DenseT>
 inline void
 LeafNode<T, Log2Dim>::copyToDense(const CoordBBox& bbox, DenseT& dense) const
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     mBuffer.loadValues();
 #endif
 
@@ -1275,7 +1278,7 @@ inline void
 LeafNode<T, Log2Dim>::copyFromDense(const CoordBBox& bbox, const DenseT& dense,
                                     const ValueType& background, const ValueType& tolerance)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1360,7 +1363,7 @@ LeafNode<T,Log2Dim>::readBuffers(std::istream& is, const CoordBBox& clipBBox, bo
     SharedPtr<io::StreamMetadata> meta = io::getStreamMetadataPtr(is);
     const bool seekable = meta && meta->seekable();
 
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     std::streamoff maskpos = is.tellg();
 #endif
 
@@ -1388,7 +1391,7 @@ LeafNode<T,Log2Dim>::readBuffers(std::istream& is, const CoordBBox& clipBBox, bo
         mValueMask.setOff();
         mBuffer.setOutOfCore(false);
     } else {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
         // If this node lies completely inside the clipping region and it is being read
         // from a memory-mapped file, delay loading of its buffer until the buffer
         // is actually accessed.  (If this node requires clipping, its buffer
@@ -1419,7 +1422,7 @@ LeafNode<T,Log2Dim>::readBuffers(std::istream& is, const CoordBBox& clipBBox, bo
                 background = *static_cast<const T*>(bgPtr);
             }
             this->clip(clipBBox, background);
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
         }
 #endif
     }
@@ -1642,7 +1645,7 @@ inline void
 LeafNode<T, Log2Dim>::resetBackground(const ValueType& oldBackground,
                                       const ValueType& newBackground)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1664,7 +1667,7 @@ template<MergePolicy Policy>
 inline void
 LeafNode<T, Log2Dim>::merge(const LeafNode& other)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1695,7 +1698,7 @@ template<MergePolicy Policy>
 inline void
 LeafNode<T, Log2Dim>::merge(const ValueType& tileValue, bool tileActive)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
 
@@ -1742,7 +1745,7 @@ template<typename T, Index Log2Dim>
 inline void
 LeafNode<T, Log2Dim>::negate()
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     for (Index i = 0; i < SIZE; ++i) {
@@ -1759,7 +1762,7 @@ template<typename CombineOp>
 inline void
 LeafNode<T, Log2Dim>::combine(const LeafNode& other, CombineOp& op)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     CombineArgs<T> args;
@@ -1779,7 +1782,7 @@ template<typename CombineOp>
 inline void
 LeafNode<T, Log2Dim>::combine(const ValueType& value, bool valueIsActive, CombineOp& op)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     CombineArgs<T> args;
@@ -1802,7 +1805,7 @@ inline void
 LeafNode<T, Log2Dim>::combine2(const LeafNode& other, const OtherType& value,
     bool valueIsActive, CombineOp& op)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     CombineArgs<T, OtherType> args;
@@ -1822,7 +1825,7 @@ inline void
 LeafNode<T, Log2Dim>::combine2(const ValueType& value, const OtherNodeT& other,
     bool valueIsActive, CombineOp& op)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     CombineArgs<T, typename OtherNodeT::ValueType> args;
@@ -1841,7 +1844,7 @@ template<typename CombineOp, typename OtherNodeT>
 inline void
 LeafNode<T, Log2Dim>::combine2(const LeafNode& b0, const OtherNodeT& b1, CombineOp& op)
 {
-#ifndef OPENVDB_2_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER >= 3
     if (!this->allocate()) return;
 #endif
     CombineArgs<T, typename OtherNodeT::ValueType> args;
