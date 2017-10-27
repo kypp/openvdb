@@ -750,16 +750,16 @@ Morphology<TreeType>::ErodeVoxelsOp::runParallel(NearestNeighbors nn)
         mTask = std::bind(&ErodeVoxelsOp::erode26, ph::_1, ph::_2);
         break;
 	case NN_VERTICAL:
-		mTask = boost::bind(&ErodeVoxelsOp::erode2, _1, _2);
+		mTask = std::bind(&ErodeVoxelsOp::erode2, _1, _2);
 		break;
 	case NN_UP:
-		mTask = boost::bind(&ErodeVoxelsOp::erodeUp, _1, _2);
+		mTask = std::bind(&ErodeVoxelsOp::erodeUp, _1, _2);
 		break;
 	case NN_DOWN:
-		mTask = boost::bind(&ErodeVoxelsOp::erodeDown, _1, _2);
+		mTask = std::bind(&ErodeVoxelsOp::erodeDown, _1, _2);
 		break;
 	case NN_HORIZONTAL:
-		mTask = boost::bind(&ErodeVoxelsOp::erodeHorizontal, _1, _2);
+		mTask = std::bind(&ErodeVoxelsOp::erodeHorizontal, _1, _2);
 		break;
     default:
         mTask = std::bind(&ErodeVoxelsOp::erode6, ph::_1, ph::_2);
