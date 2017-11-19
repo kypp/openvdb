@@ -46,6 +46,7 @@
 #include <openvdb/util/NullInterrupter.h>
 #include <PRM/PRM_Parm.h>
 #include <UT/UT_Interrupt.h>
+#include <algorithm> // for std::min()
 #include <cctype> // for isspace()
 #include <iomanip>
 #include <set>
@@ -651,8 +652,7 @@ SOP_OpenVDB_Combine::cookMySop(OP_Context& context)
         evalString(aGroupStr, "groupA", 0, getTime());
         evalString(bGroupStr, "groupB", 0, getTime());
 
-        const auto* bGroup = (!bGdp ?
-            nullptr : matchGroup(const_cast<GU_Detail&>(*bGdp), bGroupStr.toStdString()));
+        const auto* bGroup = (!bGdp ?  nullptr : matchGroup(*bGdp, bGroupStr.toStdString()));
 
         // In Flatten A Groups mode, treat space-separated subpatterns
         // as specifying distinct groups to be processed independently.
@@ -1022,7 +1022,7 @@ struct SOP_OpenVDB_Combine::CombineOp
             // For non-level set grids or if level set rebuild failed due to an unsupported
             // grid type, use the grid transformer tool to resample the source grid to match
             // the reference grid.
-#ifdef OPENVDB_3_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
             dest = src.copy(openvdb::CP_NEW);
 #else
             dest = src.copyWithNewTree();
@@ -1248,7 +1248,7 @@ struct SOP_OpenVDB_Combine::CombineOp
                 const Blend1<ValueT> comp(aMult, bMult);
                 ValueT bg;
                 comp(aGrid->background(), ZERO, bg);
-#ifdef OPENVDB_3_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
                 resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
 #else
                 resultGrid = aGrid->copyWithNewTree();
@@ -1262,7 +1262,7 @@ struct SOP_OpenVDB_Combine::CombineOp
                 const Blend2<ValueT> comp(aMult, bMult);
                 ValueT bg;
                 comp(aGrid->background(), ZERO, bg);
-#ifdef OPENVDB_3_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
                 resultGrid = aGrid->copy(/*tree=*/openvdb::CP_NEW);
 #else
                 resultGrid = aGrid->copyWithNewTree();

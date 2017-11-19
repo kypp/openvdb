@@ -34,6 +34,7 @@
 ///
 /// @brief The Delayed Load Mantra Procedural for OpenVDB Points.
 
+#include <UT/UT_Version.h>
 #if (UT_VERSION_INT >= 0x10000000) // 16.0.0 or later
 
 #include <UT/UT_DSOVersion.h>
@@ -169,7 +170,7 @@ struct GenerateBBoxOp {
 
         if (!mIncludeGroups.empty() || !mExcludeGroups.empty()) {
 
-            points::MultiGroupFilter filter(mIncludeGroups, mExcludeGroups);
+            points::MultiGroupFilter filter(mIncludeGroups, mExcludeGroups, leaf.attributeSet());
             auto iter = leaf.beginIndexOn(filter);
 
             for (; iter; ++iter) {
@@ -266,7 +267,7 @@ struct PopulateColorFromVelocityOp {
 
             if (!mIncludeGroups.empty() || !mExcludeGroups.empty()) {
 
-                MultiGroupFilter filter(mIncludeGroups, mExcludeGroups);
+                MultiGroupFilter filter(mIncludeGroups, mExcludeGroups, leaf.attributeSet());
                 auto iter = leaf.beginIndexOn(filter);
 
                 for (; iter; ++iter) {

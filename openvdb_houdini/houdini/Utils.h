@@ -39,8 +39,8 @@
 #include <OP/OP_Node.h> // for OP_OpTypeId
 #include <UT/UT_Interrupt.h>
 #include <openvdb/openvdb.h>
-#include <boost/function.hpp> ///< @todo use std::function instead
-#include <boost/shared_ptr.hpp>
+#include <functional>
+#include <memory>
 #include <type_traits>
 
 
@@ -73,7 +73,7 @@ using GridCRef = const openvdb::GridBase&;
 class OPENVDB_HOUDINI_API VdbPrimCIterator
 {
 public:
-    using FilterFunc = boost::function<bool (const GU_PrimVDB&)>;
+    using FilterFunc = std::function<bool (const GU_PrimVDB&)>;
 
     /// @param gdp
     ///     the geometry detail over which to iterate
@@ -134,7 +134,7 @@ protected:
     VdbPrimCIterator(const GEO_Detail*, GA_Range::safedeletions,
         const GA_PrimitiveGroup* = nullptr, FilterFunc = FilterFunc());
 
-    boost::shared_ptr<GA_GBPrimitiveIterator> mIter;
+    std::shared_ptr<GA_GBPrimitiveIterator> mIter;
     FilterFunc mFilter;
 }; // class VdbPrimCIterator
 
@@ -200,11 +200,9 @@ public:
 class Interrupter
 {
 public:
-    Interrupter(const char* title = nullptr):
-        mUTI(UTgetInterrupt()), mRunning(false)
-    {
-        if (title) mUTI->setAppTitle(title);
-    }
+    explicit Interrupter(const char* title = nullptr):
+        mUTI{UTgetInterrupt()}, mRunning{false}, mTitle{title ? title : ""}
+    {}
     ~Interrupter() { if (mRunning) this->end(); }
 
     Interrupter(const Interrupter&) = default;
@@ -212,7 +210,9 @@ public:
 
     /// @brief Signal the start of an interruptible operation.
     /// @param name  an optional descriptive name for the operation
-    void start(const char* name = nullptr) {if (!mRunning) { mRunning=true; mUTI->opStart(name); }}
+    void start(const char* name = nullptr) {
+        if (!mRunning) { mRunning = true; mUTI->opStart(name ? name : mTitle.c_str()); }
+    }
     /// Signal the end of an interruptible operation.
     void end() { if (mRunning) { mUTI->opEnd(); mRunning = false; } }
 
@@ -224,6 +224,7 @@ public:
 private:
     UT_Interrupt* mUTI;
     bool mRunning;
+    std::string mTitle;
 };
 
 

@@ -323,7 +323,6 @@ inline void
 closestPoints(const GridT& grid, float isovalue, const GU_Detail& gdp,
     UT_FloatArray& distances, UT_Vector3Array* positions, InterrupterT& boss)
 {
-
     std::vector<openvdb::Vec3R> tmpPoints(distances.entries());
 
     GA_ROHandleV3 points = GA_ROHandleV3(gdp.getP());
@@ -335,20 +334,17 @@ closestPoints(const GridT& grid, float isovalue, const GU_Detail& gdp,
         tmpPoints[n][2] = pos.z();
     }
 
-
     std::vector<float> tmpDistances;
 
     const bool transformPoints = (positions != nullptr);
 
-    openvdb::tools::ClosestSurfacePoint<GridT> closestPoint;
-    if (!closestPoint.initialize(grid, isovalue, &boss)) return;
+    auto closestPoint = openvdb::tools::ClosestSurfacePoint<GridT>::create(grid, isovalue, &boss);
+    if (!closestPoint) return;
 
-    if (transformPoints) closestPoint.searchAndReplace(tmpPoints, tmpDistances);
-    else closestPoint.search(tmpPoints, tmpDistances);
+    if (transformPoints) closestPoint->searchAndReplace(tmpPoints, tmpDistances);
+    else closestPoint->search(tmpPoints, tmpDistances);
 
     for (size_t n = 0, N = tmpDistances.size(); n < N; ++n) {
-
-
         if (tmpDistances[n] < distances(n)) {
             distances(n) = tmpDistances[n];
             if (transformPoints) {
@@ -427,7 +423,7 @@ SOP_OpenVDB_Ray::cookMySop(OP_Context& context)
 
         duplicateSource(0, context);
 
-        hvdb::Interrupter boss("OpenVDB Ray");
+        hvdb::Interrupter boss("Computing VDB ray intersections");
 
         const GU_Detail* vdbGeo = inputGeo(1);
         if (vdbGeo == nullptr) return error();
@@ -435,8 +431,7 @@ SOP_OpenVDB_Ray::cookMySop(OP_Context& context)
         // Get the group of grids to surface.
         UT_String groupStr;
         evalString(groupStr, "group", 0, time);
-        const GA_PrimitiveGroup* group =
-            matchGroup(const_cast<GU_Detail&>(*vdbGeo), groupStr.toStdString());
+        const GA_PrimitiveGroup* group = matchGroup(*vdbGeo, groupStr.toStdString());
         hvdb::VdbPrimCIterator vdbIt(vdbGeo, group);
 
         if (!vdbIt) {
